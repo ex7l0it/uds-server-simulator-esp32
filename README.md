@@ -42,6 +42,7 @@ You can also add custom ECU information with the following fields:
         * `DID_No_Security`: These DIDs can be read and written without authentication.
         * `DID_Security_03`: These DIDs can be read without authentication but require 2703 authentication for writing.
         * `DID_Security_19`: These DIDs can be read without authentication but require 2719 authentication for writing.   
+        * `DID_Security_21`: These DIDs require 2721 authentication for reading and writing.
     * format: [DID1, DID2, ...] 
         * `DID_IO_Control`: The IO operation corresponding to the DID must be controlled with 27 authentication.
 
@@ -62,8 +63,11 @@ Examples:
             "0xF190": "LUAU2AUB3GE383467",
             "0xF197": "GW"
         },
+        "DID_Security_21": {
+            "0xFA19": "SecurityData"
+        },
         "DID_IO_Control": []
-    }
+    },
 ```
 
 ## Usage

@@ -48,8 +48,10 @@ int current_session_mode = 1;           // default session mode(1), only support
 int current_security_level = 0;         // default not unlocked(0), only support 3 and 19 in this version.
 int current_security_phase_3 = 0;       // default 0, there are two phases: 1 and 2.
 int current_security_phase_19 = 0;      // default 0, there are two phases: 1 and 2.
+int current_security_phase_21 = 0;      // default 0, there are two phases: 1 and 2.
 uint8_t *current_seed_3 = NULL;         // store the current 27's seed of security level 0x03.
 uint8_t *current_seed_19 = NULL;        // store the current 27's seed of security level 0x19.
+uint8_t *current_seed_21 = NULL;        // store the current 27's seed of security level 0x21.
 int security_access_error_attempt = 0;  // store service 27 error attempt number, only limit sl 19.
 
 uint8_t tmp_store[8] = {0};
@@ -82,6 +84,10 @@ int DID_Security_03_Num = 0;
 /* DID for 22 & 2E services, write DID value with 27 19 */
 int DID_Security_19[100] = {0};
 int DID_Security_19_Num = 0;
+
+/* DID for 22 & 2E services, write DID value with 27 21 */
+int DID_Security_21[100] = {0};
+int DID_Security_21_Num = 0;
 
 /* DID number for 22 & 2E services */
 int DID_NUM = 0;
@@ -204,7 +210,8 @@ void uds_server_init(cJSON *root, char *ecu) {
     DID_No_Security_Num = DID_assignment(items, "DID_No_Security", DID_No_Security);
     DID_Security_03_Num = DID_assignment(items, "DID_Security_03", DID_Security_03);
     DID_Security_19_Num = DID_assignment(items, "DID_Security_19", DID_Security_19);
-    DID_NUM = (DID_No_Security_Num + DID_Security_03_Num + DID_Security_19_Num);
+    DID_Security_21_Num = DID_assignment(items, "DID_Security_21", DID_Security_21);
+    DID_NUM = (DID_No_Security_Num + DID_Security_03_Num + DID_Security_19_Num + DID_Security_21_Num);
 
     DID_IO_Control_Num = DID_assignment(items, "DID_IO_Control", DID_IO_Control);
 }
@@ -214,9 +221,11 @@ void uds_server_init(cJSON *root, char *ecu) {
 void reset_relevant_variables() { // when session mode changed
     current_security_level = 0;       
     current_security_phase_3 = 0;       
-    current_security_phase_19 = 0;    
+    current_security_phase_19 = 0;   
+    current_security_phase_21 = 0;  
     current_seed_3 = NULL;         
-    current_seed_19 = NULL;        
+    current_seed_19 = NULL;      
+    current_seed_21 = NULL;  
     security_access_error_attempt = 0; 
     flow_control_flag = 0;
     st_min = 0;
@@ -272,7 +281,7 @@ uint8_t *seed_generate(int sl) {
         return seed_ptr;
     }
 
-    if (sl == 0x19) {
+    if (sl == 0x19 || sl == 0x21) {
         uint8_t str[3];
         int ret;
         int num;
@@ -298,7 +307,7 @@ uint8_t *security_algorithm(uint8_t *seed_ptr, int sl) {
         return key_ptr;
 	}
 
-    if (sl == 0x1A) {
+    if (sl == 0x1A || sl == 0x22) {
         uint8_t Seed[4];
         uint8_t Const[4];
         uint8_t Key[4];
@@ -434,7 +443,7 @@ int isSubFunctionSupported(int sid, int sf) {
                 return 0;
             break;
         case UDS_SID_SECURITY_ACCESS:
-            if (sf == 0x03 || sf == 0x04 || sf == 0x19 || sf == 0x1A)
+            if (sf == 0x03 || sf == 0x04 || sf == 0x19 || sf == 0x1A || sf == 0x21 || sf == 0x22)
                 return 0;
             break;
         case UDS_SID_READ_DATA_BY_ID:   // 0x22 No SF
@@ -522,6 +531,14 @@ int isIncorrectMessageLengthOrInvalidFormat(struct can_frame frame) {
     return -1;
 }
 
+int isRequestSecurityAccessMember(unsigned int did) {
+    for (int k = 0; k < DID_Security_21_Num; k++) {
+        if (did == DID_Security_21[k])
+            return 0;
+    }
+    return -1;
+}
+
 /* NRC 0x31 requestOutOfRange */
 int isRequestOutOfRange(unsigned int did) {
     for (int i = 0; i < DID_No_Security_Num; i++) {
@@ -534,6 +551,10 @@ int isRequestOutOfRange(unsigned int did) {
     }
     for (int k = 0; k < DID_Security_19_Num; k++) {
         if (did == DID_Security_19[k])
+            return 0;
+    }
+    for (int k = 0; k < DID_Security_21_Num; k++) {
+        if (did == DID_Security_21[k])
             return 0;
     }
     for (int l = 0; l < DID_IO_Control_Num; l++) {
@@ -555,6 +576,10 @@ int isSecurityAccessDenied(unsigned int did) {
     }
     for (int k = 0; k < DID_Security_19_Num; k++) {
         if (did == DID_Security_19[k] && current_security_level == 0x19)
+            return 0;
+    }
+    for (int k = 0; k < DID_Security_21_Num; k++) {
+        if (did == DID_Security_21[k] && current_security_level == 0x21)
             return 0;
     }
     for (int l = 0; l < DID_IO_Control_Num; l++) {
@@ -658,6 +683,14 @@ void read_data_by_id(int can, struct can_frame frame) {
         send_negative_response(can, UDS_SID_READ_DATA_BY_ID, nrc_31);
         return;
     }
+
+    if (isRequestSecurityAccessMember(did) == 0) {
+        int nrc_33 = isSecurityAccessDenied(did);
+        if (nrc_33 != 0) {
+            send_negative_response(can, UDS_SID_WRITE_DATA_BY_ID, nrc_33);
+            return;
+        }
+    }
  
     uint8_t str[256] = {0};
     str[0] = 0x62;
@@ -748,7 +781,7 @@ void security_access(int can, struct can_frame frame) {
     struct can_frame resp;
 
     /* 27 first phase: request a 4-byte seed from server */
-    if (sl == 0x03 || sl == 0x19) {
+    if (sl == 0x03 || sl == 0x19 || sl == 0x21) {
 		seedp = seed_generate(sl);
         resp.can_id = diag_phy_resp_id;
         resp.can_dlc = 8;
@@ -769,11 +802,15 @@ void security_access(int can, struct can_frame frame) {
             current_seed_19 = seedp;
             current_security_phase_19 = 1;
         }
+        if (sl == 0x21) {
+            current_seed_21 = seedp;
+            current_security_phase_21 = 1;
+        }
         return;
     }
-    if (sl == 0x04 || sl == 0x1A) {
+    if (sl == 0x04 || sl == 0x1A || sl == 0x22) {
         /* must request seed firstly */
-        if ((sl == 0x04 && current_security_phase_3 != 1) || (sl == 0x1A && current_security_phase_19 != 1)) {
+        if ((sl == 0x04 && current_security_phase_3 != 1) || (sl == 0x1A && current_security_phase_19 != 1) || (sl == 0x22 && current_security_phase_21 != 1)) {
             send_negative_response(can, UDS_SID_SECURITY_ACCESS, REQUEST_SEQUENCE_ERROR);
             return;
         }
@@ -785,6 +822,9 @@ void security_access(int can, struct can_frame frame) {
         }    
         if (sl == 0x1A && current_seed_19 != NULL && current_security_phase_19 ==1) {
             keyp = security_algorithm(current_seed_19, sl);
+        } 
+        if (sl == 0x22 && current_seed_21 != NULL && current_security_phase_21 ==1) {
+            keyp = security_algorithm(current_seed_21, sl);
         } 
         /* determine the passed key is right or not */
         if (*keyp == frame.data[3] && *(keyp+1) == frame.data[4] \
@@ -809,6 +849,11 @@ void security_access(int can, struct can_frame frame) {
                 current_security_phase_19 = 2;
                 security_access_error_attempt = 0;
             }
+            if (sl == 0x22) {
+                current_security_level = sl-1;
+                current_security_phase_21 = 2;
+                security_access_error_attempt = 0;
+            }
         } else {    // key is incorrect
             send_negative_response(can, UDS_SID_SECURITY_ACCESS, INVALID_KEY);
             if (sl == 0x04) {
@@ -816,6 +861,10 @@ void security_access(int can, struct can_frame frame) {
             }
             if (sl == 0x1A) {
                 current_security_phase_19 = 0;
+                security_access_error_attempt += 1;
+            }
+            if (sl == 0x22) {
+                current_security_phase_21 = 0;
                 security_access_error_attempt += 1;
             }
         }
@@ -829,6 +878,9 @@ void security_access(int can, struct can_frame frame) {
         }
         if (sl == 0x1A) {
             current_seed_19 = NULL;
+        }
+        if (sl == 0x22) {
+            current_seed_21 = NULL;
         }
         return;
     }
