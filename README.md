@@ -1,54 +1,34 @@
-# uds-server-simulator
-A configurable CAN UDS simulator.
+# uds-server-simulator - ESP32
 
-Author: Honinbon
-
-## Intro
-This project is used to simulate the UDS server in the ECU, and can be configured into different ECU information through configuration files. This project welcomes all security researchers, security testers and bros interested in learning about ISO-14229.
-
-## Preparation
-If you have only an ubuntu without a can-hardware, you need to enable a virtual can interface.
-```sh
-sudo ip link add dev can0 type vcan
-
-sudo ip link set can0 up
-```
-
-## Build
-Compile it with `make` after `git clone` the repository.
-
-```sh
-git clone https://github.com/Honinb0n/uds-server-simulator.git
-
-cd ./uds-server-simulator
-
-make
-```
+Based on [uds-server-simulator](https://github.com/Honinb0n/uds-server-simulator), a configurable CAN UDS simulator for ESP32.
 
 ## Configration file
+
 The file `config.json` defines every ECU's information which needs to be initialized.
 
 The `CURRENT_ECU` specifies which ECU the server should simulate.
 
 You can also add custom ECU information with the following fields:
 
-* **Mandatory**
-    * `func_req_id`: can be set to "0x7DF", or an empty string.
-    * `phy_req_id`: e.g. "0x703"
-    * `phy_resp_id`: e.g. "0x7A3"    
-
-* **Optional** 
-    * format: {"DID": "DATA", ...}   
-        * `DID_No_Security`: These DIDs can be read and written without authentication.
-        * `DID_Security_03`: These DIDs can be read without authentication but require 2703 authentication for writing.
-        * `DID_Security_19`: These DIDs can be read without authentication but require 2719 authentication for writing.   
-        * `DID_Security_21`: These DIDs require 2721 authentication for reading and writing.
-    * format: [DID1, DID2, ...] 
-        * `DID_IO_Control`: The IO operation corresponding to the DID must be controlled with 27 authentication.
+- **Mandatory**
+  - `func_req_id`: can be set to "0x7DF", or an empty string.
+  - `phy_req_id`: e.g. "0x703"
+  - `phy_resp_id`: e.g. "0x7A3"
+- **Optional**
+  - format: {"DID": "DATA", ...}
+    - `DID_No_Security`: These DIDs can be read and written without authentication.
+    - `DID_Security_03`: These DIDs can be read without authentication but require 2703 authentication for writing.
+    - `DID_Security_19`: These DIDs can be read without authentication but require 2719 authentication for writing.
+    - `DID_Security_21`: These DIDs require 2721 authentication for reading and writing.
+  - format: [DID1, DID2, ...]
+    - `DID_IO_Control`: The IO operation corresponding to the DID must be controlled with 27 authentication.
 
 Examples:
-```json
-"GW": {
+
+```
+{   
+    "CURRENT_ECU": "GW",
+	"GW": {
         "func_req_id": "",
         "phy_req_id": "0x703",
         "phy_resp_id": "0x7A3",
@@ -67,41 +47,62 @@ Examples:
             "0xFA19": "SecurityData"
         },
         "DID_IO_Control": []
-    },
+    }
+}
 ```
 
+## Build & Flash
+
+1. Clone this repo
+
+```shell
+git clone https://github.com/ex7l0it/uds-server-simulator.git
+```
+
+2. Open this project by Arduino IDE 2.x.
+
+3. Configure the Arduino IDE to support ESP32:
+
+   - File - Preferences... - Additional boards manager URLs: `https://espressif.github.io/arduino-esp32/package_esp32_index.json`
+
+   - Open Board managers, search `esp32` and install the **esp32** by Espressif Systems (2.0.17)
+     - ⚠️ Note that the version installed here needs to be 2.x
+
+    - Install the LittleFS Uploader Plugin on Arduino IDE 2
+      - [LittleFS Uploader Plugiin](https://github.com/earlephilhower/arduino-littlefs-upload)
+      - [Install guide](https://randomnerdtutorials.com/arduino-ide-2-install-esp32-littlefs/)
+
+4. Select `ESP32 Dev Module` and then click the Upload button.
+
+   ![wevncvbe.szd](./assets/wevncvbe.szd.png)
+
+5. Edit `data/config.json`, make the changes you need.
+
+6. Press [**Ctrl**] + [**Shift**] + [**P**] , click **Upload Little FS to Pico/ESP8266/ESP32**
+
+   - ⚠️ Note that need to close the Serial Monitor when uploading
+
+   ![aqco3sgm.0li](./assets/aqco3sgm.0li.png)
+
+7. Press ESP32 reset button, all work done.
+
+![u13gl1aa.t5i](./assets/u13gl1aa.t5i.png)
+
 ## Usage
-1. Run `uds-server-simulator`, and it will initialize information from `config.json`. If you don't use the `-e` parameter, the program will use the default `CURRENT_ECU` value defined in `config.json`.
 
-    ```
-    Usage:   
-        uds-server-simulator [options] <CAN interface> 
+Use PCAN + CAN Transceiver + TS Master / PCAN-View (Demo sample ECU is the`TBOX` in default `config.json`)
 
-    Options:  
-        -e <ecu name>	ecu name: GW TBOX IVI HUT PKE ESP TPMS   
-        -h                  print this help menu  
-
-    Examples:   
-        ./uds-server-simulator -e TBOX can0  
-    ```
-
-2. You can use `cansend` and `candump` from [can-utils](https://github.com/linux-can/can-utils.git) to send and monitor can bus data.   
-
-    ![usage2-1](./pic/usage2-1.png) 
-    
-    Of course, you can use other socket can tools to send, receive, and even scan diagnostic can data, like [CANDetective](https://github.com/Honinb0n/CANDetective.git "coming soon in a few weeks").
-
-    Have a happy UDS hacking!
+![itssgte3.qr3](./assets/itssgte3.qr3.png)
 
 ## Acknowledgments
+
 The software refers to some excellent open source projects.
 
 Special thanks to:
 
-* Craig Smith - uds-server: <https://github.com/zombieCraig/uds-server.git>
+- Craig Smith - uds-server: https://github.com/zombieCraig/uds-server.git
+- ESP32-TWAI-CAN: https://github.com/handmade0octopus/ESP32-TWAI-CAN
 
 ## License
+
 GNU General Public License v2.0
-
-
-

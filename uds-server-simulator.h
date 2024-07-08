@@ -1,5 +1,5 @@
 /* uds-server-simulator init config json file */
-#define CONFIG_JSON_FILE    "config.json"
+#define CONFIG_JSON_FILE    "/config.json"
   
 /* UDS SIDs */
 #define UDS_SID_DIAGNOSTIC_CONTROL        0x10
