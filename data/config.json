@@ -1,6 +1,6 @@
 {   
     "CURRENT_ECU": "TBOX",
-
+    "RANDOM_FRAME": true,
     "GW": {
         "func_req_id": "",
         "phy_req_id": "0x703",

@@ -19,6 +19,7 @@ long io_control_microseconds = 0;
 int diag_func_req_id = 0;  // default 0
 int diag_phy_req_id = 0;   // default 0
 int diag_phy_resp_id = 0;  // default 0
+bool random_frame = false; // default false
 
 long change_to_non_default_session_seconds = 0;       // seconds part
 long change_to_non_default_session_microseconds = 0;  // microseconds part
@@ -82,21 +83,16 @@ int DID_IO_Control[100] = { 0 };
 int DID_IO_Control_Num = 0;
 /********************************** DID Supported End **********************************/
 
-void sendObdFrame(uint8_t obdId) {
-  CanFrame obdFrame = { 0 };
-  obdFrame.identifier = 0x7DF;  // Default OBD2 address;
-  obdFrame.extd = 0;
-  obdFrame.data_length_code = 8;
-  obdFrame.data[0] = 2;
-  obdFrame.data[1] = 1;
-  obdFrame.data[2] = obdId;
-  obdFrame.data[3] = 0xAA;  // Best to use 0xAA (0b10101010) instead of 0
-  obdFrame.data[4] = 0xAA;  // CAN works better this way as it needs
-  obdFrame.data[5] = 0xAA;  // to avoid bit-stuffing
-  obdFrame.data[6] = 0xAA;
-  obdFrame.data[7] = 0xAA;
+void sendRandomFrame() {
+  CanFrame randFrame = { 0 };
+  randFrame.identifier = random(0, 0x800);
+  randFrame.extd = 0;
+  randFrame.data_length_code = random(0, 9);
+  for (int i = 0; i < randFrame.data_length_code; ++i) {
+    randFrame.data[i] = random(0, 256);
+  }
   // Accepts both pointers and references
-  ESP32Can.writeFrame(obdFrame);  // timeout defaults to 1 ms
+  ESP32Can.writeFrame(randFrame);  // timeout defaults to 1 ms
 }
 
 
@@ -287,6 +283,13 @@ void isValueJsonString(cJSON *object) {
   }
 }
 
+void isValueJsonBool(cJSON *object) {
+  if (object->type != cJSON_True && object->type != cJSON_False) {
+    printf("## PLEASE CONFIG %s's VALUE TO BOOL TYPE ##\n", object->string);
+    exit(1);
+  }
+}
+
 int set_diag_id(cJSON *items, char *key_name) {
   cJSON *diag_id_s = cJSON_GetObjectItem(items, key_name);
   isJsonObjNull(diag_id_s, key_name);
@@ -350,6 +353,11 @@ int DID_assignment(cJSON *items, char *key_name, int *DID_Arrary) {
 // }
 
 void uds_server_init(cJSON *root, char *ecu) {
+  cJSON *RANDOM_FRAME = cJSON_GetObjectItem(root, "RANDOM_FRAME");
+  isJsonObjNull(RANDOM_FRAME, "RANDOM_FRAME");
+  isValueJsonBool(RANDOM_FRAME);
+  random_frame = RANDOM_FRAME->valueint;
+
   char *current_ecu = NULL;
   if (ecu != NULL) {
     current_ecu = ecu;
@@ -929,6 +937,7 @@ void io_control_by_did(CanFrame frame) {
 /********************************** Service Implement End **********************************/
 
 void setup() {
+  randomSeed(analogRead(0));
   // Setup serial for debbuging.
   Serial.begin(115200);
 
@@ -1166,10 +1175,10 @@ void loop() {
   static uint32_t lastStamp = 0;
   uint32_t currentStamp = millis();
 
-  if (currentStamp - lastStamp > 1000) {  // sends OBD2 request every second
-    // TODO: Generate random CAN data
+  if (random_frame && currentStamp - lastStamp > 1000) { 
+    // Generate random CAN data per second
     lastStamp = currentStamp;
-    sendObdFrame(5);  // For coolant temperature
+    sendRandomFrame(); 
   }
 
   // You can set custom timeout, default is 1000
