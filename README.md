@@ -2,11 +2,21 @@
 
 Based on [uds-server-simulator](https://github.com/Honinb0n/uds-server-simulator), a configurable CAN UDS simulator for ESP32.
 
+Simulatable services:
+
+- 0x10: Diagnostic Session Control
+- 0x22: ReadDataByIdentifier
+- 0x27: Security Access
+- 0x2E: WriteDataByIdentifier
+- 0x2F: InputOutputControlByIdentifier
+
 ## Configration file
 
 The file `config.json` defines every ECU's information which needs to be initialized.
 
 The `CURRENT_ECU` specifies which ECU the server should simulate.
+
+The `RANDOM_FRAME` controls whether random CAN data generation is enabled.
 
 You can also add custom ECU information with the following fields:
 
@@ -28,6 +38,7 @@ Examples:
 ```
 {   
     "CURRENT_ECU": "GW",
+    "RANDOM_FRAME": true,
 	"GW": {
         "func_req_id": "",
         "phy_req_id": "0x703",
@@ -92,7 +103,14 @@ git clone https://github.com/ex7l0it/uds-server-simulator.git
 
 Use PCAN + CAN Transceiver + TS Master / PCAN-View (Demo sample ECU is the`TBOX` in default `config.json`)
 
-![itssgte3.qr3](./assets/itssgte3.qr3.png)
+| ESP32 pin | CAN Transceiver pin |
+| --------- | ------------------- |
+| 3V3       | 3.3V                |
+| GND       | GND                 |
+| D4        | CAN RX              |
+| D5        | CAN TX              |
+
+![p4egdout.n3k](./assets/p4egdout.n3k.png)
 
 ## Acknowledgments
 
