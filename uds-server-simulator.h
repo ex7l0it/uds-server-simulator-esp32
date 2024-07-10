@@ -41,11 +41,13 @@
 #define SERVICE_NOT_SUPPORTED	                    0x11
 #define SUB_FUNCTION_NOT_SUPPORTED	                0x12
 #define INCORRECT_MESSAGE_LENGTH_OR_INVALID_FORMAT	0x13
+#define CONDITIONS_NOT_CORRECT	                    0x22
 #define REQUEST_SEQUENCE_ERROR	                    0x24
 #define REQUEST_OUT_OF_RANGE	                    0x31
 #define SECURITY_ACCESS_DENIED	                    0x33
 #define INVALID_KEY	                                0x35
 #define EXCEED_NUMBER_OF_ATTEMPTS	                0x36
+#define TRANSFER_DATA_SUSPENDED	                    0x71
 #define SERVICE_NOT_SUPPORTED_IN_ACTIVE_SESSION	    0x7F
 
 /* Others */

@@ -9,6 +9,10 @@ Simulatable services:
 - 0x27: Security Access
 - 0x2E: WriteDataByIdentifier
 - 0x2F: InputOutputControlByIdentifier
+- 0x34: RequestDownload
+- 0x35: RequestUpload
+- 0x36: TransferData
+- 0x37: RequestTransferExit
 
 ## Configration file
 
@@ -39,7 +43,7 @@ Examples:
 {   
     "CURRENT_ECU": "GW",
     "RANDOM_FRAME": true,
-	"GW": {
+    "GW": {
         "func_req_id": "",
         "phy_req_id": "0x703",
         "phy_resp_id": "0x7A3",
@@ -67,7 +71,7 @@ Examples:
 1. Clone this repo
 
 ```shell
-git clone https://github.com/ex7l0it/uds-server-simulator.git
+git clone https://github.com/ex7l0it/uds-server-simulator-esp32.git
 ```
 
 2. Open this project by Arduino IDE 2.x.
@@ -112,14 +116,27 @@ Use PCAN + CAN Transceiver + TS Master / PCAN-View (Demo sample ECU is the`TBOX`
 
 ![p4egdout.n3k](./assets/p4egdout.n3k.png)
 
+### Upload / Download
+
+Request Download / Upload available address space: `0x0000-0xFFFF`
+
+- eg. `733#0734002200000019`
+  - `0022`: fixed hard-coded: uncompressed and unencrypted, memoryAddressLength and memorySizeLength are both 2 bytes
+  - `0000`: memoryAddress
+  - `0019`: memorySize
+
+
+
 ## Acknowledgments
 
 The software refers to some excellent open source projects.
 
 Special thanks to:
 
-- Craig Smith - uds-server: https://github.com/zombieCraig/uds-server.git
+- uds-server-simulator: https://github.com/Honinb0n/uds-server-simulator
 - ESP32-TWAI-CAN: https://github.com/handmade0octopus/ESP32-TWAI-CAN
+
+
 
 ## License
 

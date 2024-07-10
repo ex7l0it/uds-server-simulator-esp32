@@ -10,23 +10,23 @@
 
 CanFrame rxFrame;
 /* Globals */
-char *version = "v1.1.2";
+char *version = "v1.1.3";
 
 int io_control_id_flag = 0;  // 0-false 1-true
 long io_control_seconds = 0;
 long io_control_microseconds = 0;
 
-int diag_func_req_id = 0;  // default 0
-int diag_phy_req_id = 0;   // default 0
-int diag_phy_resp_id = 0;  // default 0
-bool random_frame = false; // default false
+int diag_func_req_id = 0;   // default 0
+int diag_phy_req_id = 0;    // default 0
+int diag_phy_resp_id = 0;   // default 0
+bool random_frame = false;  // default false
 
 long change_to_non_default_session_seconds = 0;       // seconds part
 long change_to_non_default_session_microseconds = 0;  // microseconds part
 const long S3Server_timer = 5;                        // default 5s
 
 int current_session_mode = 1;           // default session mode(1), only support 1 and 3 in this version.
-int current_security_level = 0;         // default not unlocked(0), only support 3 and 19 in this version.
+int current_security_level = 0;         // default not unlocked(0), only support 3, 19 and 21 in this version.
 int current_security_phase_3 = 0;       // default 0, there are two phases: 1 and 2.
 int current_security_phase_19 = 0;      // default 0, there are two phases: 1 and 2.
 int current_security_phase_21 = 0;      // default 0, there are two phases: 1 and 2.
@@ -40,6 +40,15 @@ uint8_t tmp_store[8] = { 0 };
 int flow_control_flag = 0;  // 0-false 1-true
 uint8_t st_min = 0;         // us
 
+/* This space is for $34 and $35 */
+uint8_t *firmwareSpace = NULL;
+int SPACE_SIZE = 64 * 1024;  // 64K
+int req_transfer_data_len = 0;
+int req_transfer_data_add = 0;
+int req_transfer_type = 0;  // 0x34 or 0x35
+int req_transfer_block_num = 0;
+int req_transfer_block_counter = 0;
+
 /* This is for $22 flow control packets */
 uint8_t gBuffer[256] = { 0 };
 int gBufSize = 0;
@@ -51,6 +60,7 @@ uint8_t ggBuffer[256] = { 0 };
 int ggBufSize = 0;
 int ggBufLengthRemaining = 0;
 int ggBufCounter = 0;
+int ggSID = 0;
 
 /********************************** DID Supported Start **********************************/
 /* DID for 22 & 2E services, write DID value without authentication */
@@ -176,7 +186,7 @@ void send_negative_response(int sid, int nrc) {
 }
 
 void flow_control_push_to() {  // referred to Craig Smith's uds-server.
-  CanFrame frame;
+  CanFrame frame = { 0 };
   frame.identifier = diag_phy_resp_id;
   while (gBufLengthRemaining > 0) {
     if (gBufLengthRemaining > 7) {
@@ -206,7 +216,7 @@ void flow_control_push_to() {  // referred to Craig Smith's uds-server.
 
 void isotp_send_to(uint8_t *data, int size) {  // referred to Craig Smith's uds-server.
   // send did's data: server to client
-  CanFrame frame;
+  CanFrame frame = { 0 };
   int left = size;
   int counter;
   int nbytes;
@@ -368,6 +378,11 @@ void uds_server_init(cJSON *root, char *ecu) {
     current_ecu = CURRENT_ECU->valuestring;
   }
 
+  // 64K
+  firmwareSpace = (uint8_t *)malloc(SPACE_SIZE);
+  char *test_str = "Hello world";
+  memcpy(firmwareSpace, test_str, strlen(test_str));
+
   // for(int i=0; i<strlen(current_ecu); i++){
   //     *(current_ecu+i) = lower2upper(*(current_ecu+i));
   // }
@@ -411,8 +426,14 @@ void reset_relevant_variables() {  // when session mode changed
   ggBufSize = 0;
   ggBufLengthRemaining = 0;
   ggBufCounter = 0;
+  ggSID = 0;
   memset(ggBuffer, 0, sizeof(ggBuffer));
   memset(tmp_store, 0, sizeof(tmp_store));
+  req_transfer_data_len = 0;
+  req_transfer_data_add = 0;
+  req_transfer_type = 0;
+  req_transfer_block_num = 0;
+  req_transfer_block_counter = 0;
 }
 
 char int2nibble(int two_char, int position) {
@@ -437,7 +458,7 @@ int isSFExisted(int sid, int sf) {
 int isSubFunctionSupported(int sid, int sf) {
   switch (sid) {
     case UDS_SID_DIAGNOSTIC_CONTROL:
-      if (sf == 0x01 || sf == 0x03)
+      if (sf == 0x01 || sf == 0x02 || sf == 0x03)
         return 0;
       break;
     case UDS_SID_TESTER_PRESENT:
@@ -496,6 +517,9 @@ int isIncorrectMessageLengthOrInvalidFormat(CanFrame frame) {
         if (first_byte >= 0x04 && first_byte <= 0x05)
           return 0;
         break;
+      case UDS_SID_REQUEST_XFER_EXIT:
+        if (first_byte == 0x01)
+          return 0;
       default:
         if (first_byte >= 0x02 && first_byte <= 0x07)
           return 0;
@@ -737,7 +761,7 @@ void write_data_by_id(CanFrame frame) {
     return;
   }
 
-  CanFrame resp;
+  CanFrame resp = { 0 };
   char first_char = int2nibble(frame.data[0], 0);
   if (first_char == '0') {
 
@@ -764,6 +788,7 @@ void write_data_by_id(CanFrame frame) {
     ggBufSize = ((frame.data[0] & 0x0000000F) << 8) | frame.data[1];
     ggBufSize -= 3;
     ggBufCounter = 0x21;
+    ggSID = UDS_SID_WRITE_DATA_BY_ID;
     ggBufLengthRemaining = ggBufSize - 3;
     memset(ggBuffer, 0, sizeof(ggBuffer));  // clear the original value
     memcpy(ggBuffer, &frame.data[5], 3);
@@ -790,7 +815,7 @@ void security_access(CanFrame frame) {
   int sl = frame.data[2];
   uint8_t *seedp;
   uint8_t *keyp;
-  CanFrame resp;
+  CanFrame resp = { 0 };
 
   /* 27 first phase: request a 4-byte seed from server */
   if (sl == 0x03 || sl == 0x19 || sl == 0x21) {
@@ -934,6 +959,154 @@ void io_control_by_did(CanFrame frame) {
       return;
   }
 }
+
+
+void request_download_or_upload(CanFrame frame, int sid) {
+  u_int8_t dataFormatIdentifier = frame.data[2];
+  u_int8_t addressAndLengthFormatIdentifier = frame.data[3];
+  // high 4 bits is memoryAddressLength, low 4 bits is memorySizeLength
+  u_int8_t memoryAddressLength = (addressAndLengthFormatIdentifier & 0xF0) >> 4;
+  u_int8_t memorySizeLength = addressAndLengthFormatIdentifier & 0x0F;
+  u_int8_t memoryAddress = 0;
+  u_int8_t memorySize = 0;
+  if (memoryAddressLength > 2 || memorySizeLength > 2) {
+    send_negative_response(UDS_SID_REQUEST_UPLOAD, REQUEST_OUT_OF_RANGE);
+    return;
+  }
+  // get memoryAddress and memorySize
+  for (int i = 0; i < memoryAddressLength; i++) {
+    memoryAddress = memoryAddress << 8;
+    memoryAddress += frame.data[4 + i];
+  }
+  for (int i = 0; i < memorySizeLength; i++) {
+    memorySize = memorySize << 8;
+    memorySize += frame.data[4 + memoryAddressLength + i];
+  }
+
+  if (memoryAddress + memorySize > SPACE_SIZE) {
+    send_negative_response(UDS_SID_REQUEST_UPLOAD, REQUEST_OUT_OF_RANGE);
+    return;
+  }
+  req_transfer_data_add = memoryAddress;
+  req_transfer_data_len = memorySize;
+
+  req_transfer_type = sid;
+  // Calculate the number of data blocks required (divide by 127 to round up the result)
+  req_transfer_block_num = (req_transfer_data_len + 127 - 1) / 127;
+
+  CanFrame resp = { 0 };
+  resp.identifier = diag_phy_resp_id;
+  resp.data_length_code = 8;
+  resp.data[0] = 0x04;
+  resp.data[1] = frame.data[1] + 0x40;
+  resp.data[2] = 0x20;  // lengthFormatIdentifier
+  resp.data[3] = 0x00;  // maximumNumberBlockLength: 0x0081
+  resp.data[4] = 0x81;
+  resp.data[5] = 0x00;
+  resp.data[6] = 0x00;
+  resp.data[7] = 0x00;
+  ESP32Can.writeFrame(resp);
+}
+
+void transfer_data(CanFrame frame) {
+  char first_char = int2nibble(frame.data[0], 0);
+  u_int8_t sequenceNumber = first_char == '0' ? frame.data[2] : frame.data[3];
+  u_int8_t buffer[129] = { 0 };
+
+  if (sequenceNumber > req_transfer_block_num || sequenceNumber == 0) {
+    send_negative_response(UDS_SID_TRANSFER_DATA, REQUEST_OUT_OF_RANGE);
+    return;
+  }
+  if (sequenceNumber != req_transfer_block_counter + 1 && sequenceNumber != req_transfer_block_counter) {
+    send_negative_response(UDS_SID_TRANSFER_DATA, REQUEST_SEQUENCE_ERROR);
+    return;
+  }
+  if (sequenceNumber == req_transfer_block_counter) {
+    req_transfer_block_counter--;
+  }
+
+  if (req_transfer_type == UDS_SID_REQUEST_DOWNLOAD) {
+    int max_block_len = req_transfer_data_len > 127 ? 127 : req_transfer_data_len;
+    CanFrame resp = { 0 };
+    if (first_char == '0') {
+      // reset taget memory space
+      memset(&firmwareSpace[req_transfer_data_add + (sequenceNumber - 1) * max_block_len], 0, max_block_len);
+
+      resp.identifier = diag_phy_resp_id;
+      resp.data_length_code = 8;
+      resp.data[0] = 0x02;
+      resp.data[1] = frame.data[1] + 0x40;
+      resp.data[2] = ++req_transfer_block_counter;
+      resp.data[3] = 0x00;
+      resp.data[4] = 0x00;
+      resp.data[5] = 0x00;
+      resp.data[6] = 0x00;
+      resp.data[7] = 0x00;
+      ESP32Can.writeFrame(resp);
+      return;
+    }
+    if (first_char == '1') {
+      ggBufSize = ((frame.data[0] & 0x0000000F) << 8) | frame.data[1];
+      ggBufSize -= 2;
+      if (ggBufSize != req_transfer_data_len) {
+        send_negative_response(UDS_SID_TRANSFER_DATA, TRANSFER_DATA_SUSPENDED);
+        ggBufSize = 0;
+        return;
+      }
+      ggBufCounter = 0x21;
+      ggSID = UDS_SID_TRANSFER_DATA;
+      ggBufLengthRemaining = ggBufSize - 4;
+      memset(ggBuffer, 0, sizeof(ggBuffer));  // clear the original value
+      memcpy(ggBuffer, &frame.data[4], 4);
+
+      resp.identifier = diag_phy_resp_id;
+      resp.data_length_code = 8;
+      resp.data[0] = 0x30;
+      resp.data[1] = 0x00;
+      resp.data[2] = 0x0F;
+      resp.data[3] = 0x00;
+      resp.data[4] = 0x00;
+      resp.data[5] = 0x00;
+      resp.data[6] = 0x00;
+      resp.data[7] = 0x00;
+      ESP32Can.writeFrame(resp);
+      return;
+    }
+  }
+
+  if (req_transfer_type == UDS_SID_REQUEST_UPLOAD) {
+    int max_block_len = req_transfer_data_len > 127 ? 127 : req_transfer_data_len;
+    int block_len = (req_transfer_data_len - (sequenceNumber - 1) * 127) > 127 ? max_block_len : (req_transfer_data_len - (sequenceNumber - 1) * 127);
+    memcpy(buffer + 2, &firmwareSpace[req_transfer_data_add + (sequenceNumber - 1) * 127], block_len);
+
+    buffer[0] = frame.data[1] + 0x40;
+    buffer[1] = sequenceNumber;
+    isotp_send_to(buffer, block_len + 2);
+    req_transfer_block_counter++;
+  }
+}
+
+void xfer_exit(CanFrame frame) {
+  CanFrame resp = { 0 };
+  resp.identifier = diag_phy_resp_id;
+  resp.data_length_code = 8;
+  resp.data[0] = 0x01;
+  resp.data[1] = frame.data[1] + 0x40;
+  resp.data[2] = 0x00;
+  resp.data[3] = 0x00;
+  resp.data[4] = 0x00;
+  resp.data[5] = 0x00;
+  resp.data[6] = 0x00;
+  resp.data[7] = 0x00;
+  ESP32Can.writeFrame(resp);
+  // reset
+  req_transfer_data_add = 0;
+  req_transfer_data_len = 0;
+  req_transfer_block_num = 0;
+  req_transfer_block_counter = 0;
+  req_transfer_type = 0x00;
+}
+
 /********************************** Service Implement End **********************************/
 
 void setup() {
@@ -1013,12 +1186,11 @@ cJSON *read_config() {
 void handle_pkt(CanFrame frame) {
   /* DO NOT RECEIVE OTHER CANID */
   if (frame.identifier != diag_func_req_id && frame.identifier != diag_phy_req_id) {
-    Serial.printf("Not REQID, Exitting... PHY_REQID: %x\n", diag_phy_req_id);
+    Serial.printf("Not REQID, Exitting... PHY_REQID: %x, REQID: %x\n", diag_phy_req_id, frame.identifier);
     return;
   }
   /* GET SID & SF */
   char first_char = int2nibble(frame.data[0], 0);
-  Serial.printf("first_char: %c\n", first_char);
   int sid, sf;
   if (first_char == '0') {
     sid = frame.data[1];
@@ -1073,7 +1245,7 @@ void handle_pkt(CanFrame frame) {
         }
       case UDS_SID_SECURITY_ACCESS:          // SID 0x27
         if (current_session_mode != 0x01) {  // only support SID 0x27 in non-default session mode
-          // printf("## current_session_mode = %#x\n", current_session_mode);
+          // Serial.printf("## [security_access] current_session_mode = %#x\n", current_session_mode);
           if (isNonDefaultModeTimeout(sid) == -1)
             return;
           if (isSFExisted(sid, sf) == -1)
@@ -1094,6 +1266,55 @@ void handle_pkt(CanFrame frame) {
           return;
         } else {  // default session mode
           send_negative_response(sid, SERVICE_NOT_SUPPORTED_IN_ACTIVE_SESSION);
+          return;
+        }
+      case UDS_SID_REQUEST_DOWNLOAD:
+      case UDS_SID_REQUEST_UPLOAD:  // SID 0x34 or 0x35
+        if (current_session_mode != 0x02) {
+          // MUST in programming session mode
+          send_negative_response(sid, SERVICE_NOT_SUPPORTED_IN_ACTIVE_SESSION);
+          return;
+        } else if (current_security_level == 0x00) {
+          // MUST unlock the security access
+          send_negative_response(sid, SECURITY_ACCESS_DENIED);
+          return;
+        } else if (req_transfer_type != 0) {
+          send_negative_response(sid, CONDITIONS_NOT_CORRECT);
+          return;
+        } else {
+          request_download_or_upload(frame, sid);
+          return;
+        }
+      case UDS_SID_TRANSFER_DATA:  // SID 0x36
+        if (current_session_mode != 0x02) {
+          // MUST in programming session mode
+          send_negative_response(sid, SERVICE_NOT_SUPPORTED_IN_ACTIVE_SESSION);
+          return;
+        } else if (current_security_level == 0x00) {
+          // MUST unlock the security access
+          send_negative_response(sid, SECURITY_ACCESS_DENIED);
+          return;
+        } else if (req_transfer_type != 0x34 && req_transfer_type != 0x35) {
+          send_negative_response(UDS_SID_TRANSFER_DATA, REQUEST_SEQUENCE_ERROR);
+          return;
+        } else {
+          transfer_data(frame);
+          return;
+        }
+      case UDS_SID_REQUEST_XFER_EXIT:
+        if (current_session_mode != 0x02) {
+          // MUST in programming session mode
+          send_negative_response(sid, SERVICE_NOT_SUPPORTED_IN_ACTIVE_SESSION);
+          return;
+        } else if (current_security_level == 0x00) {
+          // MUST unlock the security access (level >= 0x19)
+          send_negative_response(sid, SECURITY_ACCESS_DENIED);
+          return;
+        } else if (req_transfer_type != 0x34 && req_transfer_type != 0x35 || (req_transfer_block_counter != req_transfer_block_num)) {
+          send_negative_response(UDS_SID_TRANSFER_DATA, REQUEST_SEQUENCE_ERROR);
+          return;
+        } else {
+          xfer_exit(frame);
           return;
         }
       default:
@@ -1122,28 +1343,50 @@ void handle_pkt(CanFrame frame) {
       } else {
         memcpy(ggBuffer + (ggBufSize - ggBufLengthRemaining), &frame.data[1], ggBufLengthRemaining);
         ggBufLengthRemaining = 0;
-        unsigned char bytes[] = { tmp_store[1], tmp_store[2] };  //	two bytes of DID
-        unsigned int did = (bytes[0] << 8) | bytes[1];           //	DID hex int value
-        for (int i = 0; i < DID_NUM; i++) {
-          if (pairs[i].key == did) {
-            memset(pairs[i].value, 0, sizeof(pairs[i].value));  // clear the original value
-            memcpy(pairs[i].value, ggBuffer, strlen((char *)ggBuffer));
+        if (ggSID == UDS_SID_WRITE_DATA_BY_ID) {
+          unsigned char bytes[] = { tmp_store[1], tmp_store[2] };  //	two bytes of DID
+          unsigned int did = (bytes[0] << 8) | bytes[1];           //	DID hex int value
+          for (int i = 0; i < DID_NUM; i++) {
+            if (pairs[i].key == did) {
+              memset(pairs[i].value, 0, sizeof(pairs[i].value));  // clear the original value
+              memcpy(pairs[i].value, ggBuffer, strlen((char *)ggBuffer));
+            }
           }
+          CanFrame resp = { 0 };
+          resp.identifier = diag_phy_resp_id;
+          resp.data_length_code = 8;
+          resp.data[0] = 0x03;
+          resp.data[1] = tmp_store[0] + 0x40;
+          resp.data[2] = tmp_store[1];
+          resp.data[3] = tmp_store[2];
+          resp.data[4] = 0x00;
+          resp.data[5] = 0x00;
+          resp.data[6] = 0x00;
+          resp.data[7] = 0x00;
+          ESP32Can.writeFrame(resp);
+          memset(tmp_store, 0, sizeof(tmp_store));
+          memset(ggBuffer, 0, sizeof(ggBuffer));
         }
-        CanFrame resp;
-        resp.identifier = diag_phy_resp_id;
-        resp.data_length_code = 8;
-        resp.data[0] = 0x03;
-        resp.data[1] = tmp_store[0] + 0x40;
-        resp.data[2] = tmp_store[1];
-        resp.data[3] = tmp_store[2];
-        resp.data[4] = 0x00;
-        resp.data[5] = 0x00;
-        resp.data[6] = 0x00;
-        resp.data[7] = 0x00;
-        ESP32Can.writeFrame(resp);
-        memset(tmp_store, 0, sizeof(tmp_store));
-        memset(ggBuffer, 0, sizeof(ggBuffer));
+        if (ggSID == UDS_SID_TRANSFER_DATA) {
+          memcpy(ggBuffer + (ggBufSize - ggBufLengthRemaining), &frame.data[1], ggBufLengthRemaining);
+          int max_block_len = req_transfer_data_len > 127 ? 127 : req_transfer_data_len;
+          int start_add = req_transfer_data_add + req_transfer_block_counter * max_block_len;
+          memcpy(&firmwareSpace[start_add], ggBuffer, max_block_len);
+
+          CanFrame resp = { 0 };
+          resp.identifier = diag_phy_resp_id;
+          resp.data_length_code = 8;
+          resp.data[0] = 0x02;
+          resp.data[1] = tmp_store[0] + 0x40;
+          resp.data[2] = ++req_transfer_block_counter;
+          resp.data[3] = 0x00;
+          resp.data[4] = 0x00;
+          resp.data[5] = 0x00;
+          resp.data[6] = 0x00;
+          resp.data[7] = 0x00;
+          ESP32Can.writeFrame(resp);
+          memset(ggBuffer, 0, sizeof(ggBuffer));
+        }
       }
     }
     return;
@@ -1175,10 +1418,10 @@ void loop() {
   static uint32_t lastStamp = 0;
   uint32_t currentStamp = millis();
 
-  if (random_frame && currentStamp - lastStamp > 1000) { 
+  if (random_frame && currentStamp - lastStamp > 1000) {
     // Generate random CAN data per second
     lastStamp = currentStamp;
-    sendRandomFrame(); 
+    sendRandomFrame();
   }
 
   // You can set custom timeout, default is 1000
