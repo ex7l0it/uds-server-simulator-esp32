@@ -47,8 +47,10 @@
 #define SECURITY_ACCESS_DENIED	                    0x33
 #define INVALID_KEY	                                0x35
 #define EXCEED_NUMBER_OF_ATTEMPTS	                0x36
+#define REQUIRED_TIME_DELAY_NOT_EXPIRED	            0x37
 #define TRANSFER_DATA_SUSPENDED	                    0x71
 #define SERVICE_NOT_SUPPORTED_IN_ACTIVE_SESSION	    0x7F
 
 /* Others */
 #define SECURITY_ACCESS_ERROR_LIMIT_NUM     3
+#define SECURITY_ACCESS_LOCK_DELAY          5

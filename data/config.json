@@ -47,6 +47,9 @@
             "0x1059": "adminlog",
             "0x105A": "p4ssw0rdlog"
         },
+        "DID_Security_21": {
+          "0xFA19": "SecurityData"
+        },
         "DID_IO_Control": []
     },
 
