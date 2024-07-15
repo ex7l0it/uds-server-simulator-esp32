@@ -3,10 +3,14 @@
 #include "third/ESP32-TWAI-CAN.cpp"
 #include "uds-server-simulator.h"
 #include <LittleFS.h>
+#include <WiFi.h>
+#include <WiFiAP.h>
 
 // Default for ESP32
 #define CAN_TX 5
 #define CAN_RX 4
+
+WiFiAPClass WiFiAP;
 
 CanFrame rxFrame;
 /* Globals */
@@ -978,11 +982,11 @@ void request_download_or_upload(CanFrame frame, int sid) {
   u_int32_t memorySize = 0;
   // nrc13 check
   if (frame.data[0] != 3+memoryAddressLength+memorySizeLength) {
-    send_negative_response(can, sid, INCORRECT_MESSAGE_LENGTH_OR_INVALID_FORMAT);
+    send_negative_response(sid, INCORRECT_MESSAGE_LENGTH_OR_INVALID_FORMAT);
     return;
   }
   if (memoryAddressLength > 2 || memorySizeLength > 2) {
-    send_negative_response(UDS_SID_REQUEST_UPLOAD, REQUEST_OUT_OF_RANGE);
+    send_negative_response(sid, REQUEST_OUT_OF_RANGE);
     return;
   }
   // get memoryAddress and memorySize
