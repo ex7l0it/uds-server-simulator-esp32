@@ -1,6 +1,6 @@
 # uds-server-simulator - ESP32
 
-Based on [uds-server-simulator](https://github.com/Honinb0n/uds-server-simulator), a configurable CAN UDS simulator for ESP32.
+Based on [uds-server-simulator](https://github.com/Honinb0n/uds-server-simulator), a configurable CAN UDS simulator for ESP32 (ESP-WROOM-32).
 
 Simulatable services:
 
@@ -14,6 +14,7 @@ Simulatable services:
 - 0x35: RequestUpload
 - 0x36: TransferData
 - 0x37: RequestTransferExit
+- 0x3E: TesterPresent
 
 ## Configration file
 
@@ -125,6 +126,12 @@ Request Download / Upload available address space: `0x0000-0xFFFF`
   - `0022`: fixed hard-coded: uncompressed and unencrypted, memoryAddressLength and memorySizeLength are both 2 bytes
   - `0000`: memoryAddress
   - `0019`: memorySize
+
+
+
+## TODO
+
+- [ ] Add DoIP Support
 
 
 
