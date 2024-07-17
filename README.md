@@ -132,7 +132,12 @@ Request Download / Upload available address space: `0x0000-0xFFFF`
 ## TODO
 
 - [ ] Add DoIP Support
-
+  - [ ] VEHICLE_ANNOUNCEMENT
+  - [x] VEHICLE_IDENTIFICATION_REQUEST (0x0001)
+  - [x] IDENTIFICATION_RESPONSE        (0x0004)
+  - [ ] ROUTING_ACTIVATION_REQUEST
+  - [ ] ROUTING_ACTIVATION_RESPONSE
+  
 
 
 ## Acknowledgments
