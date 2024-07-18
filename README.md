@@ -137,6 +137,8 @@ Request Download / Upload available address space: `0x0000-0xFFFF`
   - [x] IDENTIFICATION_RESPONSE        (0x0004)
   - [ ] ROUTING_ACTIVATION_REQUEST
   - [ ] ROUTING_ACTIVATION_RESPONSE
+- [ ] Organize the code
+  - [ ] Make it support multi-threading (TCP)
   
 
 
