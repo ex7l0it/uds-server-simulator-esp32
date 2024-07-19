@@ -102,4 +102,6 @@ int DID_IO_Control_Num = 0;
 uint8_t doip_gBuffer[256];
 uint8_t doip_gBufferSize;
 DoIPFrame* responseFrame = nullptr;
+uint16_t TesterLogicalAddress = 0;
+uint16_t ECULogicalAddress = 0x0A00;
 /* End. */

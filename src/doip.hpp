@@ -32,6 +32,7 @@
 #define DOIP_HEADER_LENGTH 8
 #define IDENTIFICATION_RESPONSE_PAYLOAD_LENGTH 33
 #define ROUTING_ACTIVATION_RESPONSE_PAYLOAD_LENGTH 9
+#define DIAGNOSTIC_POSITIVE_ACK_PAYLOAD_LENGTH 5
 /* End */
 
 class FramePayload
@@ -96,7 +97,7 @@ public:
     uint16_t getPayloadType();
     UDSPayload *getUDSPayload();
     void setPayload(uint8_t *data, size_t length);
-    void setUDSPayload(uint16_t payload_type, uint8_t *data, size_t len, uint16_t source, uint16_t target);
+    void setUDSPayload(uint8_t *data, size_t len, uint16_t source, uint16_t target);
     void debug_print();
 
 private:
@@ -107,23 +108,30 @@ private:
 
 void doip_server_init();
 void handle_doip_frame(DoIPFrame *frame, WiFiClient *tcp_client, WiFiUDP* udp_client, int client_type);
-std::pair<uint8_t*, size_t> gen_identification_response_payload(char *VIN, uint8_t *LogicalAddress, uint8_t *EID, uint8_t *GID);
+std::pair<uint8_t*, size_t> gen_identification_response_payload(char *VIN, uint16_t LogicalAddress, uint8_t *EID, uint8_t *GID);
 std::pair<uint8_t*, size_t> gen_routing_activation_response_payload(uint16_t ClientLogicalAddress, uint16_t DoIPLogicalAddress, uint8_t code);
+std::pair<uint8_t*, size_t> gen_diagnostic_positive_ack_payload(uint16_t SourceAddress, uint16_t TargetAddress);
 
 namespace doip_uds {
+    unsigned int get_did_from_frame(uint8_t* frame);
+
     int isIncorrectMessageLengthOrInvalidFormat(uint8_t* frame, size_t len);
+    int isSFExisted(WiFiClient &tcp_client, int sid, int sf);
+    int isNonDefaultModeTimeout(WiFiClient &tcp_client, int sid);
 
-    void session_mode_change(uint8_t* frame);
-    void tester_present(uint8_t* frame);
-    void read_data_by_id(uint8_t* frame);
-    void write_data_by_id(uint8_t* frame);
-    void security_access(uint8_t* frame);
-    void io_control_by_did(uint8_t* frame);
-    void request_download_or_upload(uint8_t* frame, int sid);
-    void transfer_data(uint8_t* frame);
-    void xfer_exit(uint8_t* frame);
+    void send_negative_response(WiFiClient &tcp_client, int sid, int nrc);
 
-    void handle_pkt(uint8_t* frame, size_t len);
+    void session_mode_change(WiFiClient &tcp_client, uint8_t* frame);
+    void tester_present(WiFiClient &tcp_client, uint8_t* frame);
+    void read_data_by_id(WiFiClient &tcp_client, uint8_t* frame);
+    void write_data_by_id(WiFiClient &tcp_client, uint8_t* frame, size_t len);
+    void security_access(WiFiClient &tcp_client, uint8_t* frame);
+    void io_control_by_did(WiFiClient &tcp_client, uint8_t* frame);
+    void request_download_or_upload(WiFiClient &tcp_client, uint8_t* frame, int sid, size_t len);
+    void transfer_data(WiFiClient &tcp_client, uint8_t* frame);
+    void xfer_exit(WiFiClient &tcp_client, uint8_t* frame);
+
+    void handle_pkt(WiFiClient &tcp_client, uint8_t* frame, size_t len);
 }
 
 extern void reset_relevant_variables();

@@ -135,10 +135,14 @@ Request Download / Upload available address space: `0x0000-0xFFFF`
   - [ ] VEHICLE_ANNOUNCEMENT
   - [x] VEHICLE_IDENTIFICATION_REQUEST (0x0001)
   - [x] IDENTIFICATION_RESPONSE        (0x0004)
-  - [ ] ROUTING_ACTIVATION_REQUEST
-  - [ ] ROUTING_ACTIVATION_RESPONSE
+  - [x] ROUTING_ACTIVATION_REQUEST     (0x0005)
+  - [x] ROUTING_ACTIVATION_RESPONSE    (0x0006)
+  - [x] DIAGNOSTIC_MESSAGE             (0x8001)
+  - [x] DIAGNOSTIC_MESSAGE_POSITIVE_ACK(0x8002)
+    - [x] 0x10, 0x22, 0x27, 0x2E
+    - [x] 0x34, 0x35, 0x36, 0x37, 0x3E
+  - [ ] NEGTIVE RESPONSE
 - [ ] Organize the code
-  - [ ] Make it support multi-threading (TCP)
   
 
 

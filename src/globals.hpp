@@ -89,4 +89,7 @@ extern DIDKeyValuePair pairs[256];
 extern int DID_IO_Control[100];
 extern int DID_IO_Control_Num;
 
+extern uint16_t TesterLogicalAddress;
+extern uint16_t ECULogicalAddress;
+
 #endif // GLOBALS_H
