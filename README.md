@@ -141,10 +141,9 @@ Request Download / Upload available address space: `0x0000-0xFFFF`
   - [x] DIAGNOSTIC_MESSAGE_POSITIVE_ACK(0x8002)
     - [x] 0x10, 0x22, 0x27, 0x2E
     - [x] 0x34, 0x35, 0x36, 0x37, 0x3E
-  - [ ] NEGTIVE RESPONSE
+  - [x] NEGTIVE RESPONSE
 - [ ] Organize the code
-  
-
+- [ ] Export hex file for release
 
 ## Acknowledgments
 

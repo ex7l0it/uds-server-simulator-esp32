@@ -19,170 +19,21 @@ void doip_server_init()
 }
 /* DoIP Server Init End */
 
-NormalPayload::NormalPayload()
+DoIPFrame::DoIPFrame(WiFiClient *tcp_client, WiFiUDP *udp_client)
 {
-    data = NULL;
-    dataLength = 0;
-}
-
-NormalPayload::NormalPayload(uint8_t *data, size_t length)
-{
-    this->data = (uint8_t *)malloc(length);
-    if (this->data == NULL)
+    // generate a response DoIP frame with default header
+    if (tcp_client != nullptr)
     {
-        Serial.printf("Error: Memory allocation failed in NormalPayload construct\n");
-        dataLength = 0;
-        return;
+        this->tcp_client = tcp_client;
+        this->udp_client = nullptr;
     }
-    memcpy(this->data, data, length);
-    dataLength = length;
-    Serial.printf("NormalPayload initialized\n");
-}
-
-NormalPayload::~NormalPayload()
-{
-    if (data != NULL)
+    else
     {
-        free(data);
+        this->tcp_client = nullptr;
+        this->udp_client = udp_client;
     }
-}
-
-uint8_t *NormalPayload::getData()
-{
-    return data;
-}
-
-size_t NormalPayload::getDataLength()
-{
-    return dataLength;
-}
-
-void NormalPayload::debug_print()
-{
-    Serial.printf("Normal Payload: ");
-    if (data == NULL)
-    {
-        Serial.printf("NULL\n");
-        return;
-    }
-    for (size_t i = 0; i < dataLength; i++)
-    {
-        Serial.printf("%02X ", data[i]);
-    }
-    Serial.printf("\n");
-}
-
-UDSPayload::UDSPayload()
-{
-    sourceAddress = 0;
-    targetAddress = 0;
-    udsPayload = NULL;
-}
-
-UDSPayload::~UDSPayload()
-{
-    if (udsPayload != NULL)
-    {
-        free(udsPayload);
-    }
-}
-
-UDSPayload::UDSPayload(uint8_t *buffer, size_t length)
-{
-    if (length < 4)
-    {
-        sourceAddress = 0;
-        targetAddress = 0;
-        udsPayload = NULL;
-        return;
-    }
-    sourceAddress = (buffer[0] << 8) | buffer[1];
-    targetAddress = (buffer[2] << 8) | buffer[3];
-    udsPayloadLength = length - 4;
-    Serial.printf("UDSPayloadLength: %d\n", udsPayloadLength);
-    udsPayload = (uint8_t *)malloc(udsPayloadLength);
-    if (udsPayload == NULL)
-    {
-        Serial.printf("Error: Memory allocation failed in DoIPPayload construct\n");
-        udsPayloadLength = 0;
-        return;
-    }
-    memcpy(udsPayload, buffer + 4, udsPayloadLength);
-    Serial.printf("DoIPPayload initialized\n");
-}
-
-uint16_t UDSPayload::getSourceAddress()
-{
-    return sourceAddress;
-}
-
-uint16_t UDSPayload::getTargetAddress()
-{
-    return targetAddress;
-}
-
-uint8_t *UDSPayload::getUDSPayload()
-{
-    return udsPayload;
-}
-
-void UDSPayload::setSourceAddress(uint16_t SourceAddress)
-{
-    this->sourceAddress = SourceAddress;
-}
-
-void UDSPayload::setTargetAddress(uint16_t TargetAddress)
-{
-    this->targetAddress = TargetAddress;
-}
-
-void UDSPayload::setUDSPayload(uint8_t *UDSPayload, size_t length)
-{
-    this->udsPayload = UDSPayload;
-    this->udsPayloadLength = length;
-}
-
-uint8_t *UDSPayload::getData()
-{
-    uint8_t *data = (uint8_t *)malloc(4 + udsPayloadLength);
-    data[0] = (sourceAddress >> 8) & 0xFF;
-    data[1] = sourceAddress & 0xFF;
-    data[2] = (targetAddress >> 8) & 0xFF;
-    data[3] = targetAddress & 0xFF;
-    memcpy(data + 4, udsPayload, udsPayloadLength);
-    return data;
-}
-
-size_t UDSPayload::getDataLength()
-{
-    return 4 + udsPayloadLength;
-}
-
-void UDSPayload::debug_print()
-{
-    Serial.printf("Source Address: %d\n", sourceAddress);
-    Serial.printf("Target Address: %d\n", targetAddress);
-    Serial.printf("UDS Payload: ");
-    if (udsPayload == NULL)
-    {
-        Serial.printf("NULL\n");
-        return;
-    }
-    for (size_t i = 0; i < udsPayloadLength; i++)
-    {
-        Serial.printf("%02X ", udsPayload[i]);
-    }
-    Serial.printf("\n");
-}
-
-DoIPFrame::DoIPFrame(bool isNull = false)
-{
     this->header = nullptr;
     this->payload = nullptr;
-    if (isNull)
-    {
-        return;
-    }
     this->header = (uint8_t *)malloc(8);
     if (header == NULL)
     {
@@ -191,7 +42,7 @@ DoIPFrame::DoIPFrame(bool isNull = false)
     }
     this->header[0] = 0x02;
     this->header[1] = 0xFD;
-    this->header[2] = 0x00;
+    this->header[2] = 0x00; // Default Type: GENERIC_DOIP_HEADER
     this->header[3] = 0x00;
     this->header[4] = 0x00;
     this->header[5] = 0x00;
@@ -200,12 +51,24 @@ DoIPFrame::DoIPFrame(bool isNull = false)
     Serial.printf("DoIPFrame initialized\n");
 }
 
-DoIPFrame::DoIPFrame(uint8_t *buffer, size_t length)
+DoIPFrame::DoIPFrame(WiFiClient *tcp_client, WiFiUDP *udp_client, uint8_t *buffer, size_t length)
 {
+    // generate a DoIP frame from request buffer
+    if (tcp_client != nullptr)
+    {
+        this->tcp_client = tcp_client;
+        this->udp_client = nullptr;
+    }
+    else
+    {
+        this->tcp_client = nullptr;
+        this->udp_client = udp_client;
+    }
     this->header = nullptr;
     this->payload = nullptr;
     if (length < DOIP_HEADER_LENGTH)
     {
+        // ignore invalid frame
         return;
     }
     // TODO: add max length check
@@ -216,14 +79,27 @@ DoIPFrame::DoIPFrame(uint8_t *buffer, size_t length)
         return;
     }
     memcpy(this->header, buffer, DOIP_HEADER_LENGTH);
-    // check length
-    if (this->getPayloadLength() + DOIP_HEADER_LENGTH != length)
+    // check version info (DoIP-041)
+    if (this->header[0] != 0x02 || this->header[1] != 0xFD)
     {
-        Serial.printf("Error: DoIPFrame length mismatch\n");
-        free(this->header);
-        this->header = nullptr;
+        this->sendNACK(INCORRECT_PATTERN_FORMAT);
         return;
     }
+    // check payload type (DoIP-042)
+    if (!this->checkPayloadType()) {
+        this->sendNACK(UNKNOWN_PAYLOAD_TYPE);
+        return;
+    }
+
+    // TODO: DoIP-043 DoIP-044 check
+
+    // check length (DoIP-045)
+    if (this->getPayloadLength() + DOIP_HEADER_LENGTH != length)
+    {
+        this->sendNACK(INCORRECT_PATTERN_FORMAT);
+        return;
+    }
+    
     if (this->getPayloadLength() > 0)
     {
         Serial.printf("Continue to copy payload.\n");
@@ -289,6 +165,40 @@ void DoIPFrame::setUDSPayload(uint8_t *data, size_t len, uint16_t source, uint16
     this->payload[3] = target & 0xFF;
     memcpy(this->payload + 4, data, len);
     this->setPayloadLength(len + 4);
+}
+
+/// @brief send NACK response (will free memory)
+/// @param SourceAddress 
+/// @param TargetAddress 
+/// @param NRC 
+void DoIPFrame::sendNACK(uint8_t NRC)
+{
+    uint8_t payload_data[] = { NRC } ;
+    this->setPayloadType(GENERIC_DOIP_HEADER);
+    this->setPayload(payload_data, 1);
+    uint8_t *response_data = this->getData();
+    if (this->tcp_client != nullptr)
+    {
+        this->tcp_client->write(response_data, this->getDataLength());
+    }
+    else if (this->udp_client != nullptr)
+    {
+        this->udp_client->beginPacket(this->udp_client->remoteIP(), this->udp_client->remotePort());
+        this->udp_client->write(response_data, this->getDataLength());
+        this->udp_client->endPacket();
+    }
+    free(response_data);
+    free(this->payload);
+    this->payload = nullptr;
+    free(this->header);
+    this->header = nullptr;
+    if (NRC == INCORRECT_PATTERN_FORMAT || NRC == INVALID_PAYLOAD_LENGTH) {
+        if (this->tcp_client != nullptr)
+        {
+            this->tcp_client->stop();
+        }
+    }
+    return;
 }
 
 void DoIPFrame::setPayloadType(uint16_t PayloadType)
@@ -395,7 +305,24 @@ bool DoIPFrame::isNull()
     return header == nullptr;
 }
 
-std::pair<uint8_t*, size_t> gen_identification_response_payload(char *VIN, uint16_t LogicalAddress, uint8_t *EID, uint8_t *GID)
+bool DoIPFrame::checkPayloadType()
+{
+    int payloadType = this->getPayloadType();
+    switch (payloadType)
+    {
+    case VEHICLE_IDENTIFICATION_REQUEST:
+    case ROUTING_ACTIVATION_REQUEST:
+    case DIAGNOSTIC_MESSAGE:
+        return true;
+        break;
+    default:
+        return false;
+        break;
+    }
+    return false;
+}
+
+std::pair<uint8_t *, size_t> gen_identification_response_payload(char *VIN, uint16_t LogicalAddress, uint8_t *EID, uint8_t *GID)
 {
     uint8_t *data = (uint8_t *)malloc(IDENTIFICATION_RESPONSE_PAYLOAD_LENGTH);
     if (data == NULL)
@@ -437,6 +364,17 @@ std::pair<uint8_t *, size_t> gen_diagnostic_positive_ack_payload(uint16_t Source
     data[3] = TargetAddress & 0xFF;
     data[4] = 0x00;
     return std::make_pair(data, DIAGNOSTIC_POSITIVE_ACK_PAYLOAD_LENGTH);
+}
+
+std::pair<uint8_t *, size_t> gen_diagnostic_positive_nack_payload(uint16_t SourceAddress, uint16_t TargetAddress, uint8_t NRC)
+{
+    uint8_t *data = (uint8_t *)malloc(DIAGNOSTIC_NEGATIVE_ACK_PAYLOAD_LENGTH);
+    data[0] = (SourceAddress >> 8) & 0xFF;
+    data[1] = SourceAddress & 0xFF;
+    data[2] = (TargetAddress >> 8) & 0xFF;
+    data[3] = TargetAddress & 0xFF;
+    data[4] = NRC;
+    return std::make_pair(data, DIAGNOSTIC_NEGATIVE_ACK_PAYLOAD_LENGTH);
 }
 
 unsigned int doip_uds::get_did_from_frame(uint8_t *frame)
@@ -515,7 +453,7 @@ void doip_uds::send_negative_response(WiFiClient &tcp_client, int sid, int nrc)
         0x3F,
         sid,
         nrc};
-    DoIPFrame response = DoIPFrame();
+    DoIPFrame response = DoIPFrame(&tcp_client, nullptr);
     response.setPayloadType(DIAGNOSTIC_MESSAGE);
     response.setUDSPayload(payload_data, sizeof(payload_data), ECULogicalAddress, TesterLogicalAddress);
     uint8_t *response_data = response.getData();
@@ -532,7 +470,7 @@ void doip_uds::session_mode_change(WiFiClient &tcp_client, uint8_t *frame)
         0xc8,
         0x01,
         0xF4};
-    DoIPFrame response = DoIPFrame();
+    DoIPFrame response = DoIPFrame(&tcp_client, nullptr);
     response.setPayloadType(DIAGNOSTIC_MESSAGE);
     response.setUDSPayload(payload_data, sizeof(payload_data), ECULogicalAddress, TesterLogicalAddress);
     uint8_t *response_data = response.getData();
@@ -572,7 +510,7 @@ void doip_uds::tester_present(WiFiClient &tcp_client, uint8_t *frame)
             frame[0] + 0x40,
             frame[1]};
 
-        DoIPFrame response = DoIPFrame();
+        DoIPFrame response = DoIPFrame(&tcp_client, nullptr);
         response.setPayloadType(DIAGNOSTIC_MESSAGE);
         response.setUDSPayload(payload_data, sizeof(payload_data), ECULogicalAddress, TesterLogicalAddress);
         uint8_t *response_data = response.getData();
@@ -628,18 +566,17 @@ void doip_uds::read_data_by_id(WiFiClient &tcp_client, uint8_t *frame)
     }
     if (data != nullptr)
     {
-        DoIPFrame *response = new DoIPFrame();
-        response->setPayloadType(DIAGNOSTIC_MESSAGE);
-        response->setUDSPayload(data, data_len, ECULogicalAddress, TesterLogicalAddress);
+        DoIPFrame response = DoIPFrame(&tcp_client, nullptr);
+        response.setPayloadType(DIAGNOSTIC_MESSAGE);
+        response.setUDSPayload(data, data_len, ECULogicalAddress, TesterLogicalAddress);
         free(data);
         data = nullptr;
 
-        uint8_t *response_data = response->getData();
-        size_t response_len = response->getDataLength();
+        uint8_t *response_data = response.getData();
+        size_t response_len = response.getDataLength();
         tcp_client.write(response_data, response_len);
 
         free(response_data);
-        delete response;
     }
     else
     {
@@ -674,7 +611,7 @@ void doip_uds::write_data_by_id(WiFiClient &tcp_client, uint8_t *frame, size_t l
         }
     }
 
-    DoIPFrame response = DoIPFrame();
+    DoIPFrame response = DoIPFrame(&tcp_client, nullptr);
     response.setPayloadType(DIAGNOSTIC_MESSAGE);
     uint8_t payload_data[] = {
         frame[0] + 0x40,
@@ -695,7 +632,7 @@ void doip_uds::security_access(WiFiClient &tcp_client, uint8_t *frame)
     if (sl == 0x03 || sl == 0x19 || sl == 0x21)
     {
         seedp = seed_generate(sl);
-        DoIPFrame response = DoIPFrame();
+        DoIPFrame response = DoIPFrame(&tcp_client, nullptr);
         response.setPayloadType(DIAGNOSTIC_MESSAGE);
         uint8_t payload_data[] = {
             frame[0] + 0x40,
@@ -761,7 +698,7 @@ void doip_uds::security_access(WiFiClient &tcp_client, uint8_t *frame)
             uint8_t payload_data[] = {
                 frame[0] + 0x40,
                 frame[1]};
-            DoIPFrame resp = DoIPFrame();
+            DoIPFrame resp = DoIPFrame(&tcp_client, nullptr);
             resp.setPayloadType(DIAGNOSTIC_MESSAGE);
             resp.setUDSPayload(payload_data, sizeof(payload_data), ECULogicalAddress, TesterLogicalAddress);
             uint8_t *response_data = resp.getData();
@@ -879,7 +816,7 @@ void doip_uds::request_download_or_upload(WiFiClient &tcp_client, uint8_t *frame
     // Calculate the number of data blocks required (divide by 127 to round up the result)
     req_transfer_block_num = (req_transfer_data_len + 127 - 1) / 127;
 
-    DoIPFrame response = DoIPFrame();
+    DoIPFrame response = DoIPFrame(&tcp_client, nullptr);
     response.setPayloadType(DIAGNOSTIC_MESSAGE);
     uint8_t payload_data[] = {
         frame[0] + 0x40,
@@ -912,14 +849,14 @@ void doip_uds::transfer_data(WiFiClient &tcp_client, uint8_t *frame)
         req_transfer_block_counter--;
     }
 
-    if (req_transfer_type == UDS_SID_REQUEST_DOWNLOAD) {
+    if (req_transfer_type == UDS_SID_REQUEST_DOWNLOAD)
+    {
         int max_block_len = req_transfer_data_len > 127 ? 127 : req_transfer_data_len;
 
         memset(&firmwareSpace[req_transfer_data_add + (sequenceNumber - 1) * max_block_len], 0, max_block_len);
         memcpy(&firmwareSpace[req_transfer_data_add + (sequenceNumber - 1) * max_block_len], &frame[2], max_block_len);
 
-
-        DoIPFrame response = DoIPFrame();
+        DoIPFrame response = DoIPFrame(&tcp_client, nullptr);
         response.setPayloadType(DIAGNOSTIC_MESSAGE);
         uint8_t payload_data[] = {
             frame[0] + 0x40,
@@ -931,11 +868,12 @@ void doip_uds::transfer_data(WiFiClient &tcp_client, uint8_t *frame)
         free(response_data);
         return;
     }
-    if (req_transfer_type == UDS_SID_REQUEST_UPLOAD) {
+    if (req_transfer_type == UDS_SID_REQUEST_UPLOAD)
+    {
         int max_block_len = req_transfer_data_len > 127 ? 127 : req_transfer_data_len;
         int block_len = (req_transfer_data_len - (sequenceNumber - 1) * 127) > 127 ? max_block_len : (req_transfer_data_len - (sequenceNumber - 1) * 127);
 
-        DoIPFrame response = DoIPFrame();
+        DoIPFrame response = DoIPFrame(&tcp_client, nullptr);
         response.setPayloadType(DIAGNOSTIC_MESSAGE);
         uint8_t payload_data[2 + block_len] = {0};
         payload_data[0] = frame[0] + 0x40;
@@ -952,11 +890,10 @@ void doip_uds::transfer_data(WiFiClient &tcp_client, uint8_t *frame)
 
 void doip_uds::xfer_exit(WiFiClient &tcp_client, uint8_t *frame)
 {
-    DoIPFrame response = DoIPFrame();
+    DoIPFrame response = DoIPFrame(&tcp_client, nullptr);
     response.setPayloadType(DIAGNOSTIC_MESSAGE);
     uint8_t payload_data[] = {
-        frame[0] + 0x40
-    };
+        frame[0] + 0x40};
     response.setUDSPayload(payload_data, sizeof(payload_data), ECULogicalAddress, TesterLogicalAddress);
     uint8_t *response_data = response.getData();
     tcp_client.write(response_data, response.getDataLength());
@@ -1134,7 +1071,7 @@ void doip_uds::handle_pkt(WiFiClient &tcp_client, uint8_t *frame, size_t len)
 
 void handle_doip_frame(DoIPFrame *frame, WiFiClient *tcp_client, WiFiUDP *udp_client, int client_type)
 {
-    DoIPFrame *responseFrame = new DoIPFrame();
+    DoIPFrame responseFrame = DoIPFrame(tcp_client, udp_client);
     int type = frame->getPayloadType();
     char VIN[18] = "12345678901234567";
     uint8_t EID[6] = {0x00, 0x00, 0x00, 0x00, 0x00, 0x01};
@@ -1152,7 +1089,7 @@ void handle_doip_frame(DoIPFrame *frame, WiFiClient *tcp_client, WiFiUDP *udp_cl
         Serial.printf("VEHICLE_IDENTIFICATION_REQUEST\n");
 
         std::tie(payload, payload_len) = gen_identification_response_payload(VIN, ECULogicalAddress, EID, GID);
-        responseFrame->setPayloadType(VEHICLE_ANNOUNCEMENT_OR_IDENTIFICATION_RESPONSE);
+        responseFrame.setPayloadType(VEHICLE_ANNOUNCEMENT_OR_IDENTIFICATION_RESPONSE);
         break;
     case ROUTING_ACTIVATION_REQUEST:
         Serial.printf("ROUTING_ACTIVATION_REQUEST\n");
@@ -1164,8 +1101,8 @@ void handle_doip_frame(DoIPFrame *frame, WiFiClient *tcp_client, WiFiUDP *udp_cl
         // Serial.printf("Activation Type: 0x%x\n", requestPayload[2]);
         TesterLogicalAddress = SourceAddress;
 
-        std::tie(payload, payload_len) = gen_routing_activation_response_payload(SourceAddress, 0x0A00, ROUTING_ACTIVATION_SUCCESSFUL);
-        responseFrame->setPayloadType(ROUTING_ACTIVATION_RESPONSE);
+        std::tie(payload, payload_len) = gen_routing_activation_response_payload(TesterLogicalAddress, ECULogicalAddress, ROUTING_ACTIVATION_SUCCESSFUL);
+        responseFrame.setPayloadType(ROUTING_ACTIVATION_RESPONSE);
         break;
     case DIAGNOSTIC_MESSAGE:
         Serial.printf("DIAGNOSTIC_MESSAGE\n");
@@ -1174,57 +1111,74 @@ void handle_doip_frame(DoIPFrame *frame, WiFiClient *tcp_client, WiFiUDP *udp_cl
         SourceAddress = (requestPayload[0] << 8) | requestPayload[1];
         TargetAddress = (requestPayload[2] << 8) | requestPayload[3];
 
-        std::tie(payload, payload_len) = gen_diagnostic_positive_ack_payload(SourceAddress, TargetAddress);
-        responseFrame->setPayloadType(DIAGNOSTIC_MESSAGE_POSITIVE_ACK);
-        responseFrame->setPayload(payload, payload_len);
-        free(payload);
-        response_data = responseFrame->getData();
-        if (responseFrame != nullptr && !responseFrame->isNull())
+        if (SourceAddress != TesterLogicalAddress)
         {
-            tcp_client->write(response_data, responseFrame->getDataLength());
+            // DoIP-070
+            std::tie(payload, payload_len) = gen_diagnostic_positive_nack_payload(TargetAddress, ECULogicalAddress, INVALID_SOURCE_ADDRESS);
+            responseFrame.setPayloadType(DIAGNOSTIC_MESSAGE_NEGATIVE_ACK);
+            Serial.printf("[!] DoIP-070\n");
+        } else if (TargetAddress != ECULogicalAddress) {
+            // DoIP-071
+            std::tie(payload, payload_len) = gen_diagnostic_positive_nack_payload(TargetAddress, ECULogicalAddress, UNKNOWN_TARGET_ADDRESS);
+            responseFrame.setPayloadType(DIAGNOSTIC_MESSAGE_NEGATIVE_ACK);
+            Serial.printf("[!] DoIP-071\n");
+        } else {
+            std::tie(payload, payload_len) = gen_diagnostic_positive_ack_payload(TargetAddress,ECULogicalAddress);
+            responseFrame.setPayloadType(DIAGNOSTIC_MESSAGE_POSITIVE_ACK);
+        }
+        
+        responseFrame.setPayload(payload, payload_len);
+        free(payload);
+        response_data = responseFrame.getData();
+        if (!responseFrame.isNull())
+        {
+            tcp_client->write(response_data, responseFrame.getDataLength());
         }
         free(response_data);
-        delete responseFrame;
-        responseFrame = nullptr;
-        doip_uds::handle_pkt(*tcp_client, requestPayload + 4, frame->getPayloadLength() - 4);
-        return;
+
+        if (SourceAddress != TesterLogicalAddress)
+        {
+            // close tcp connection
+            tcp_client->stop();
+            return;
+        } else if (TargetAddress != ECULogicalAddress)
+        {
+            return;
+        } else {
+            doip_uds::handle_pkt(*tcp_client, requestPayload + 4, frame->getPayloadLength() - 4);
+            return;
+        }
     default:
         Serial.printf("Unknown DoIP Frame Type\n");
-
-        delete responseFrame;
-        responseFrame = nullptr;
+        return;
     }
 
-    if (responseFrame != nullptr)
+    responseFrame.setPayload(payload, payload_len);
+    free(payload);
+    response_data = responseFrame.getData();
+
+    Serial.printf("[*] Response Frame:\n");
+    responseFrame.debug_print();
+    if (!responseFrame.isNull())
     {
-        responseFrame->setPayload(payload, payload_len);
-        free(payload);
-        uint8_t *response_data = responseFrame->getData();
-
-        Serial.printf("[*] Response Frame:\n");
-        responseFrame->debug_print();
-        if (responseFrame != nullptr && !responseFrame->isNull())
+        if (client_type == UDP_CLIENT)
         {
-            if (client_type == UDP_CLIENT)
-            {
-                Serial.println("UDP write");
-                udp_client->beginPacket(udp_client->remoteIP(), udp_client->remotePort());
-                udp_client->write(response_data, responseFrame->getDataLength());
-                udp_client->endPacket();
-            }
-            else if (client_type == TCP_CLIENT)
-            {
-                Serial.println("TCP write");
-                tcp_client->write(response_data, responseFrame->getDataLength());
-            }
+            Serial.println("UDP write");
+            udp_client->beginPacket(udp_client->remoteIP(), udp_client->remotePort());
+            udp_client->write(response_data, responseFrame.getDataLength());
+            udp_client->endPacket();
         }
-        else
+        else if (client_type == TCP_CLIENT)
         {
-            Serial.println("Error: gen response data is null");
+            Serial.println("TCP write");
+            tcp_client->write(response_data, responseFrame.getDataLength());
         }
-        free(response_data);
-        delete responseFrame;
-        responseFrame = nullptr;
     }
+    else
+    {
+        Serial.println("Error: gen response data is null");
+    }
+    free(response_data);
+
     return;
 }

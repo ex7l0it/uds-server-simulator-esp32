@@ -50,7 +50,7 @@ uint8_t st_min = 0;        // us
 
 /* This space is for $34 and $35 */
 uint8_t *firmwareSpace = NULL;
-int SPACE_SIZE = 16 * 1024; // 64K
+int SPACE_SIZE = 64 * 1024; // 64K
 int req_transfer_data_len = 0;
 int req_transfer_data_add = 0;
 int req_transfer_type = 0; // 0x34 or 0x35
@@ -99,9 +99,6 @@ int DID_IO_Control_Num = 0;
 /********************************** DID Supported End **********************************/
 
 /* DoIP */
-uint8_t doip_gBuffer[256];
-uint8_t doip_gBufferSize;
-DoIPFrame* responseFrame = nullptr;
 uint16_t TesterLogicalAddress = 0;
 uint16_t ECULogicalAddress = 0x0A00;
 /* End. */

@@ -24,83 +24,57 @@
 #define DIAGNOSTIC_MESSAGE 0x8001
 #define DIAGNOSTIC_MESSAGE_POSITIVE_ACK 0x8002
 #define DIAGNOSTIC_MESSAGE_NEGATIVE_ACK 0x8003
+/* End */
+
+/* Generic DoIP header NACK codes  */
+#define INCORRECT_PATTERN_FORMAT        0x00  // Close socket
+#define UNKNOWN_PAYLOAD_TYPE            0x01  // Discard DoIP message
+#define MESSAGE_TOO_LARGE               0x02  // Discard DoIP message
+#define OUT_OF_MEMORY                   0x03  // Discard DoIP message
+#define INVALID_PAYLOAD_LENGTH          0x04  // Close socket
+/* End */
+
+/* Diagnostic message negative acknowledge codes */
+#define INVALID_SOURCE_ADDRESS          0x02
+#define UNKNOWN_TARGET_ADDRESS          0x03
+#define DIAGNOSTIC_MESSAGE_TOO_LARGE    0x04
+#define DMSG_OUT_OF_MEMORY              0x05
+/* End */
+
 // Routing activation response code values
 #define ROUTING_ACTIVATION_SUCCESSFUL 0x10
-/* End */
 
 /* Others */
 #define DOIP_HEADER_LENGTH 8
 #define IDENTIFICATION_RESPONSE_PAYLOAD_LENGTH 33
 #define ROUTING_ACTIVATION_RESPONSE_PAYLOAD_LENGTH 9
 #define DIAGNOSTIC_POSITIVE_ACK_PAYLOAD_LENGTH 5
+#define DIAGNOSTIC_NEGATIVE_ACK_PAYLOAD_LENGTH 5
 /* End */
-
-class FramePayload
-{
-public:
-    virtual uint8_t *getData() = 0;
-    virtual size_t getDataLength() = 0;
-    virtual void debug_print() = 0;
-};
-
-class NormalPayload: public FramePayload
-{
-public:
-    NormalPayload();
-    NormalPayload(uint8_t *data, size_t length);
-    uint8_t *getData();
-    size_t getDataLength();
-    void debug_print();
-    ~NormalPayload();
-private:
-    uint8_t *data;
-    size_t dataLength;
-};
-
-class UDSPayload : public FramePayload
-{
-public:
-    UDSPayload();
-    ~UDSPayload();
-    UDSPayload(uint8_t *buffer, size_t length);
-    uint16_t getSourceAddress();
-    uint16_t getTargetAddress();
-    uint8_t *getUDSPayload();
-    uint8_t *getData();
-    size_t getDataLength();
-    void setSourceAddress(uint16_t SourceAddress);
-    void setTargetAddress(uint16_t TargetAddress);
-    void setUDSPayload(uint8_t *UDSPayload, size_t length);
-    void debug_print();
-
-private:
-    uint16_t sourceAddress;
-    uint16_t targetAddress;
-    uint8_t *udsPayload;
-    size_t udsPayloadLength;
-};
-
 
 class DoIPFrame
 {
 public:
-    DoIPFrame(bool isNull);
-    DoIPFrame(uint8_t *buffer, size_t length);
+    DoIPFrame(WiFiClient *tcp_client, WiFiUDP *udp_client);
+    DoIPFrame(WiFiClient *tcp_client, WiFiUDP *udp_client, uint8_t *buffer, size_t length);
     ~DoIPFrame();
     void setPayloadType(uint16_t PayloadType);
     void setPayloadLength(size_t PayloadLength);
     bool isNull();
+    bool checkPayloadType();
     size_t getPayloadLength();
     uint8_t *getData();
     size_t getDataLength();
     uint8_t* getPayload();
     uint16_t getPayloadType();
-    UDSPayload *getUDSPayload();
     void setPayload(uint8_t *data, size_t length);
     void setUDSPayload(uint8_t *data, size_t len, uint16_t source, uint16_t target);
+    void sendNACK(uint8_t NRC);
     void debug_print();
 
 private:
+    WiFiClient *tcp_client;
+    WiFiUDP *udp_client;
     uint8_t *header;
     uint8_t *payload;
 };
@@ -111,6 +85,7 @@ void handle_doip_frame(DoIPFrame *frame, WiFiClient *tcp_client, WiFiUDP* udp_cl
 std::pair<uint8_t*, size_t> gen_identification_response_payload(char *VIN, uint16_t LogicalAddress, uint8_t *EID, uint8_t *GID);
 std::pair<uint8_t*, size_t> gen_routing_activation_response_payload(uint16_t ClientLogicalAddress, uint16_t DoIPLogicalAddress, uint8_t code);
 std::pair<uint8_t*, size_t> gen_diagnostic_positive_ack_payload(uint16_t SourceAddress, uint16_t TargetAddress);
+std::pair<uint8_t*, size_t> gen_diagnostic_positive_nack_payload(uint16_t SourceAddress, uint16_t TargetAddress, uint8_t NRC);
 
 namespace doip_uds {
     unsigned int get_did_from_frame(uint8_t* frame);

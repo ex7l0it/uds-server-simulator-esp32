@@ -131,11 +131,11 @@ void loop()
       Serial.printf("Get UDP data from %s:%d\n", udp.remoteIP().toString().c_str(), udp.remotePort());
       u_int8_t buffer[256] = {0};
       udp.read(buffer, udp_len);
-      DoIPFrame *frame = new DoIPFrame(buffer, udp_len);
+      DoIPFrame frame = DoIPFrame(nullptr, &udp, buffer, udp_len);
       Serial.printf("[*] Request Frame:\n");
-      frame->debug_print();
+      frame.debug_print();
 
-      handle_doip_frame(frame, nullptr, &udp, UDP_CLIENT);
+      handle_doip_frame(&frame, nullptr, &udp, UDP_CLIENT);
       
       // drop data
       udp.flush();
@@ -165,12 +165,11 @@ void handle_client(void *parameter)
       Serial.printf("GET TCP DATA FROM %s:%d\n", client.remoteIP().toString().c_str(), client.remotePort());
       u_int8_t buffer[256] = {0};
       int len = client.read(buffer, 256);
-      DoIPFrame *frame = new DoIPFrame(buffer, len);
+      DoIPFrame frame = DoIPFrame(&client, nullptr, buffer, len);
       Serial.printf("[*] Request Frame:\n");
-      frame->debug_print();
+      frame.debug_print();
 
-      handle_doip_frame(frame, &client, nullptr, TCP_CLIENT);
-      delete frame;
+      handle_doip_frame(&frame, &client, nullptr, TCP_CLIENT);
     }
   }
   vTaskDelete(NULL);
