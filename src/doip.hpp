@@ -42,7 +42,8 @@
 /* End */
 
 // Routing activation response code values
-#define ROUTING_ACTIVATION_SUCCESSFUL 0x10
+#define ROUTING_UNSUPPORTED_TYPE        0x06
+#define ROUTING_ACTIVATION_SUCCESSFUL   0x10
 
 /* Others */
 #define DOIP_HEADER_LENGTH 8

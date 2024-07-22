@@ -14,7 +14,7 @@ WiFiServer server(DOIP_PORT);
 
 CanFrame rxFrame;
 /* Globals */
-char *version = "v1.1.3";
+char *version = "v1.1.4";
 
 int mode = 1; // 0: Can  1: DoIP
 

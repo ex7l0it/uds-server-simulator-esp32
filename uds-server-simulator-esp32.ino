@@ -6,9 +6,11 @@
 #include "src/canuds.hpp"
 #include <LittleFS.h>
 
-
 void setup()
 {
+  // check GPIO18 is high or low
+  gpio_get_level(GPIO_NUM_18) ? mode = 1 : mode = 0;
+
   randomSeed(analogRead(0));
   // Setup serial for debbuging.
   Serial.begin(115200);
@@ -103,40 +105,40 @@ cJSON *read_config()
 
 void loop()
 {
-  static uint32_t lastStamp = 0;
-  uint32_t currentStamp = millis();
-
-  if (random_frame && currentStamp - lastStamp > 1000)
+  if (mode == 0)
   {
-    // Generate random CAN data per second
-    lastStamp = currentStamp;
-    sendRandomFrame();
-    uint8_t buffer[256] = {0};
-  }
+    static uint32_t lastStamp = 0;
+    uint32_t currentStamp = millis();
 
-  // You can set custom timeout, default is 1000
-  if (ESP32Can.readFrame(rxFrame, 1000))
-  {
-    // Comment out if too many requests
-    can_uds::handle_pkt(rxFrame);
-  }
+    if (random_frame && currentStamp - lastStamp > 1000)
+    {
+      // Generate random CAN data per second
+      lastStamp = currentStamp;
+      sendRandomFrame();
+      uint8_t buffer[256] = {0};
+    }
 
+    // You can set custom timeout, default is 1000
+    if (ESP32Can.readFrame(rxFrame, 1000))
+    {
+      // Comment out if too many requests
+      can_uds::handle_pkt(rxFrame);
+    }
+  }
   // if open DoIP mode
-  if (mode == 1)
+  else if (mode == 1)
   {
     // udp
     int udp_len = udp.parsePacket();
     if (udp_len)
     {
-      Serial.printf("Get UDP data from %s:%d\n", udp.remoteIP().toString().c_str(), udp.remotePort());
+      // Serial.printf("Get UDP data from %s:%d\n", udp.remoteIP().toString().c_str(), udp.remotePort());
       u_int8_t buffer[256] = {0};
       udp.read(buffer, udp_len);
       DoIPFrame frame = DoIPFrame(nullptr, &udp, buffer, udp_len);
-      Serial.printf("[*] Request Frame:\n");
-      frame.debug_print();
 
       handle_doip_frame(&frame, nullptr, &udp, UDP_CLIENT);
-      
+
       // drop data
       udp.flush();
     }
@@ -152,25 +154,26 @@ void loop()
   }
 }
 
-
 void handle_client(void *parameter)
 {
   WiFiClient client = *((WiFiClient *)parameter);
   free(parameter);
 
-  while (client.connected())
+  if (mode == 1)
   {
-    if (client.available())
+    while (client.connected())
     {
-      Serial.printf("GET TCP DATA FROM %s:%d\n", client.remoteIP().toString().c_str(), client.remotePort());
-      u_int8_t buffer[256] = {0};
-      int len = client.read(buffer, 256);
-      DoIPFrame frame = DoIPFrame(&client, nullptr, buffer, len);
-      Serial.printf("[*] Request Frame:\n");
-      frame.debug_print();
+      if (client.available())
+      {
+        // Serial.printf("GET TCP DATA FROM %s:%d\n", client.remoteIP().toString().c_str(), client.remotePort());
+        u_int8_t buffer[256] = {0};
+        int len = client.read(buffer, 256);
+        DoIPFrame frame = DoIPFrame(&client, nullptr, buffer, len);
 
-      handle_doip_frame(&frame, &client, nullptr, TCP_CLIENT);
+        handle_doip_frame(&frame, &client, nullptr, TCP_CLIENT);
+      }
     }
   }
+
   vTaskDelete(NULL);
 }

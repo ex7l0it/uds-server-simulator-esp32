@@ -1,6 +1,6 @@
 # uds-server-simulator - ESP32
 
-Based on [uds-server-simulator](https://github.com/Honinb0n/uds-server-simulator), a configurable CAN UDS simulator for ESP32 (ESP-WROOM-32).
+Based on [uds-server-simulator](https://github.com/Honinb0n/uds-server-simulator), a configurable CAN/DoIP UDS simulator for ESP32 (ESP-WROOM-32).
 
 Simulatable services:
 
@@ -15,6 +15,8 @@ Simulatable services:
 - 0x36: TransferData
 - 0x37: RequestTransferExit
 - 0x3E: TesterPresent
+
+
 
 ## Configration file
 
@@ -107,6 +109,8 @@ git clone https://github.com/ex7l0it/uds-server-simulator-esp32.git
 
 ## Usage
 
+### CAN + UDS
+
 Use PCAN + CAN Transceiver + TS Master / PCAN-View (Demo sample ECU is the`TBOX` in default `config.json`)
 
 | ESP32 pin | CAN Transceiver pin |
@@ -117,6 +121,16 @@ Use PCAN + CAN Transceiver + TS Master / PCAN-View (Demo sample ECU is the`TBOX`
 | D5        | CAN TX              |
 
 ![p4egdout.n3k](./assets/p4egdout.n3k.png)
+
+### DoIP + UDS
+
+Connect the 3.3V pin to the D18 pin, then press the reset button, if you see the blue LED light up, it means in DoIP mode.
+
+![epk3jxck.kd5](./assets/epk3jxck.kd5.png)
+
+Connect to the AP (SSID: ESP32_DoIP, Password: `ESP32_DoIP_123456`), then you can connect to the 13400 port.
+
+![Snipaste_2024-07-22_14-23-03](./assets/Snipaste_2024-07-22_14-23-03.png)
 
 ### Upload / Download
 
@@ -133,17 +147,9 @@ Request Download / Upload available address space: `0x0000-0xFFFF`
 
 - [ ] Add DoIP Support
   - [ ] VEHICLE_ANNOUNCEMENT
-  - [x] VEHICLE_IDENTIFICATION_REQUEST (0x0001)
-  - [x] IDENTIFICATION_RESPONSE        (0x0004)
-  - [x] ROUTING_ACTIVATION_REQUEST     (0x0005)
-  - [x] ROUTING_ACTIVATION_RESPONSE    (0x0006)
-  - [x] DIAGNOSTIC_MESSAGE             (0x8001)
-  - [x] DIAGNOSTIC_MESSAGE_POSITIVE_ACK(0x8002)
-    - [x] 0x10, 0x22, 0x27, 0x2E
-    - [x] 0x34, 0x35, 0x36, 0x37, 0x3E
-  - [x] NEGTIVE RESPONSE
-- [ ] Organize the code
 - [ ] Export hex file for release
+
+
 
 ## Acknowledgments
 

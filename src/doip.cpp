@@ -9,6 +9,7 @@ void doip_server_init()
     // AP
     WiFiAP.softAPConfig(local_IP, gateway, subnet);
     WiFiAP.softAP(ssid, password);
+
     // Turn on LED
     pinMode(2, OUTPUT);
     digitalWrite(2, HIGH);
@@ -48,7 +49,6 @@ DoIPFrame::DoIPFrame(WiFiClient *tcp_client, WiFiUDP *udp_client)
     this->header[5] = 0x00;
     this->header[6] = 0x00;
     this->header[7] = 0x00;
-    Serial.printf("DoIPFrame initialized\n");
 }
 
 DoIPFrame::DoIPFrame(WiFiClient *tcp_client, WiFiUDP *udp_client, uint8_t *buffer, size_t length)
@@ -102,7 +102,6 @@ DoIPFrame::DoIPFrame(WiFiClient *tcp_client, WiFiUDP *udp_client, uint8_t *buffe
     
     if (this->getPayloadLength() > 0)
     {
-        Serial.printf("Continue to copy payload.\n");
         this->payload = (uint8_t *)malloc(this->getPayloadLength());
         if (this->payload == NULL)
         {
@@ -114,8 +113,6 @@ DoIPFrame::DoIPFrame(WiFiClient *tcp_client, WiFiUDP *udp_client, uint8_t *buffe
         }
         memcpy(this->payload, buffer + DOIP_HEADER_LENGTH, this->getPayloadLength());
     }
-
-    Serial.printf("DoIPFrame initialized\n");
 }
 
 DoIPFrame::~DoIPFrame()
@@ -130,7 +127,6 @@ DoIPFrame::~DoIPFrame()
         free(header);
         this->header = nullptr;
     }
-    Serial.printf("[-] DoIPFrame destroyed\n");
 }
 
 void DoIPFrame::setPayload(uint8_t *data, size_t length)
@@ -580,7 +576,7 @@ void doip_uds::read_data_by_id(WiFiClient &tcp_client, uint8_t *frame)
     }
     else
     {
-        Serial.printf("DID not found\n");
+        Serial.printf("[!] DID not found\n");
     }
 }
 
@@ -1073,9 +1069,24 @@ void handle_doip_frame(DoIPFrame *frame, WiFiClient *tcp_client, WiFiUDP *udp_cl
 {
     DoIPFrame responseFrame = DoIPFrame(tcp_client, udp_client);
     int type = frame->getPayloadType();
-    char VIN[18] = "12345678901234567";
-    uint8_t EID[6] = {0x00, 0x00, 0x00, 0x00, 0x00, 0x01};
-    uint8_t GID[6] = {0x00, 0x00, 0x00, 0x00, 0x00, 0x11};
+    char VIN[18] = "DEFAULT_VIN123456";
+    // check if VIN is in the Global pairs
+    for (int i = 0; i < DID_NUM; i++)
+    {
+        if (pairs[i].key == 0xF190)
+        {
+            memcpy(VIN, pairs[i].value, strlen((char *)pairs[i].value));
+            break;
+        }
+    }
+    // get MAC address
+    String WiFiMAC = WiFi.macAddress();
+    uint8_t EID[6] = {0};
+    for (int i = 0; i < 6; i++)
+    {
+        EID[i] = (uint8_t)strtol(WiFiMAC.substring(i * 3, i * 3 + 2).c_str(), NULL, 16);
+    }
+    uint8_t GID[6] = {0x0A, 0x0B, 0x0C, 0x0D, 0x0E, 0x0F};
     uint8_t *requestPayload = nullptr;
     uint16_t SourceAddress = 0;
     uint16_t TargetAddress = 0;
@@ -1086,27 +1097,27 @@ void handle_doip_frame(DoIPFrame *frame, WiFiClient *tcp_client, WiFiUDP *udp_cl
     switch (type)
     {
     case VEHICLE_IDENTIFICATION_REQUEST:
-        Serial.printf("VEHICLE_IDENTIFICATION_REQUEST\n");
-
+        // Serial.printf("VEHICLE_IDENTIFICATION_REQUEST\n");
         std::tie(payload, payload_len) = gen_identification_response_payload(VIN, ECULogicalAddress, EID, GID);
         responseFrame.setPayloadType(VEHICLE_ANNOUNCEMENT_OR_IDENTIFICATION_RESPONSE);
         break;
     case ROUTING_ACTIVATION_REQUEST:
-        Serial.printf("ROUTING_ACTIVATION_REQUEST\n");
-
+        // Serial.printf("ROUTING_ACTIVATION_REQUEST\n");
         requestPayload = frame->getPayload();
         SourceAddress = (requestPayload[0] << 8) | requestPayload[1];
 
-        // Serial.printf("Source Address: 0x%x\n", SourceAddress);
-        // Serial.printf("Activation Type: 0x%x\n", requestPayload[2]);
-        TesterLogicalAddress = SourceAddress;
+        if (requestPayload[2] != 0x00) {
+            // DoIP-151
+            std::tie(payload, payload_len) = gen_routing_activation_response_payload(SourceAddress, ECULogicalAddress, ROUTING_UNSUPPORTED_TYPE);
+        } else {
+            TesterLogicalAddress = SourceAddress;
+            std::tie(payload, payload_len) = gen_routing_activation_response_payload(TesterLogicalAddress, ECULogicalAddress, ROUTING_ACTIVATION_SUCCESSFUL);
+        }
 
-        std::tie(payload, payload_len) = gen_routing_activation_response_payload(TesterLogicalAddress, ECULogicalAddress, ROUTING_ACTIVATION_SUCCESSFUL);
         responseFrame.setPayloadType(ROUTING_ACTIVATION_RESPONSE);
         break;
     case DIAGNOSTIC_MESSAGE:
-        Serial.printf("DIAGNOSTIC_MESSAGE\n");
-
+        // Serial.printf("DIAGNOSTIC_MESSAGE\n");
         requestPayload = frame->getPayload();
         SourceAddress = (requestPayload[0] << 8) | requestPayload[1];
         TargetAddress = (requestPayload[2] << 8) | requestPayload[3];
@@ -1114,14 +1125,12 @@ void handle_doip_frame(DoIPFrame *frame, WiFiClient *tcp_client, WiFiUDP *udp_cl
         if (SourceAddress != TesterLogicalAddress)
         {
             // DoIP-070
-            std::tie(payload, payload_len) = gen_diagnostic_positive_nack_payload(TargetAddress, ECULogicalAddress, INVALID_SOURCE_ADDRESS);
+            std::tie(payload, payload_len) = gen_diagnostic_positive_nack_payload(TargetAddress, SourceAddress, INVALID_SOURCE_ADDRESS);
             responseFrame.setPayloadType(DIAGNOSTIC_MESSAGE_NEGATIVE_ACK);
-            Serial.printf("[!] DoIP-070\n");
         } else if (TargetAddress != ECULogicalAddress) {
             // DoIP-071
-            std::tie(payload, payload_len) = gen_diagnostic_positive_nack_payload(TargetAddress, ECULogicalAddress, UNKNOWN_TARGET_ADDRESS);
+            std::tie(payload, payload_len) = gen_diagnostic_positive_nack_payload(TargetAddress, SourceAddress, UNKNOWN_TARGET_ADDRESS);
             responseFrame.setPayloadType(DIAGNOSTIC_MESSAGE_NEGATIVE_ACK);
-            Serial.printf("[!] DoIP-071\n");
         } else {
             std::tie(payload, payload_len) = gen_diagnostic_positive_ack_payload(TargetAddress,ECULogicalAddress);
             responseFrame.setPayloadType(DIAGNOSTIC_MESSAGE_POSITIVE_ACK);
@@ -1149,7 +1158,7 @@ void handle_doip_frame(DoIPFrame *frame, WiFiClient *tcp_client, WiFiUDP *udp_cl
             return;
         }
     default:
-        Serial.printf("Unknown DoIP Frame Type\n");
+        // Serial.printf("Unknown DoIP Frame Type\n");
         return;
     }
 
@@ -1157,8 +1166,8 @@ void handle_doip_frame(DoIPFrame *frame, WiFiClient *tcp_client, WiFiUDP *udp_cl
     free(payload);
     response_data = responseFrame.getData();
 
-    Serial.printf("[*] Response Frame:\n");
-    responseFrame.debug_print();
+    // Serial.printf("[*] Response Frame:\n");
+    // responseFrame.debug_print();
     if (!responseFrame.isNull())
     {
         if (client_type == UDP_CLIENT)
