@@ -18,6 +18,16 @@ Simulatable services:
 
 
 
+## Build & Flash
+
+1. Download latest release: https://github.com/ex7l0it/uds-server-simulator-esp32/releases
+2. Unzip, edit the `data\config.json`
+3. Connect the ESP32 to PC
+4. Run the `flash.bat`
+5. Done.
+
+
+
 ## Configration file
 
 The file `config.json` defines every ECU's information which needs to be initialized.
@@ -70,42 +80,8 @@ Examples:
 }
 ```
 
-## Build & Flash
 
-1. Clone this repo
 
-```shell
-git clone https://github.com/ex7l0it/uds-server-simulator-esp32.git
-```
-
-2. Open this project by Arduino IDE 2.x.
-
-3. Configure the Arduino IDE to support ESP32:
-
-   - File - Preferences... - Additional boards manager URLs: `https://espressif.github.io/arduino-esp32/package_esp32_index.json`
-
-   - Open Board managers, search `esp32` and install the **esp32** by Espressif Systems (2.0.17)
-     - ⚠️ Note that the version installed here needs to be 2.x
-
-    - Install the LittleFS Uploader Plugin on Arduino IDE 2
-      - [LittleFS Uploader Plugiin](https://github.com/earlephilhower/arduino-littlefs-upload)
-      - [Install guide](https://randomnerdtutorials.com/arduino-ide-2-install-esp32-littlefs/)
-
-4. Select `ESP32 Dev Module` and then click the Upload button.
-
-   ![wevncvbe.szd](./assets/wevncvbe.szd.png)
-
-5. Edit `data/config.json`, make the changes you need.
-
-6. Press [**Ctrl**] + [**Shift**] + [**P**] , click **Upload Little FS to Pico/ESP8266/ESP32**
-
-   - ⚠️ Note that need to close the Serial Monitor when uploading
-
-   ![aqco3sgm.0li](./assets/aqco3sgm.0li.png)
-
-7. Press ESP32 reset button, all work done.
-
-![u13gl1aa.t5i](./assets/u13gl1aa.t5i.png)
 
 ## Usage
 
@@ -142,12 +118,47 @@ Request Download / Upload available address space: `0x0000-0xFFFF`
   - `0019`: memorySize
 
 
+## Development
+
+1. Clone this repo
+
+```shell
+git clone https://github.com/ex7l0it/uds-server-simulator-esp32.git
+```
+
+2. Open this project by Arduino IDE 2.x.
+
+3. Configure the Arduino IDE to support ESP32:
+
+   - File - Preferences... - Additional boards manager URLs: `https://espressif.github.io/arduino-esp32/package_esp32_index.json`
+
+   - Open Board managers, search `esp32` and install the **esp32** by Espressif Systems (2.0.17)
+     - ⚠️ Note that the version installed here needs to be 2.x
+
+    - Install the LittleFS Uploader Plugin on Arduino IDE 2
+      - [LittleFS Uploader Plugiin](https://github.com/earlephilhower/arduino-littlefs-upload)
+      - [Install guide](https://randomnerdtutorials.com/arduino-ide-2-install-esp32-littlefs/)
+
+4. Select `ESP32 Dev Module` and then click the Upload button.
+
+   ![wevncvbe.szd](./assets/wevncvbe.szd.png)
+
+5. Edit `data/config.json`, make the changes you need.
+
+6. Press [**Ctrl**] + [**Shift**] + [**P**] , click **Upload Little FS to Pico/ESP8266/ESP32**
+
+   - ⚠️ Note that need to close the Serial Monitor when uploading
+
+   ![aqco3sgm.0li](./assets/aqco3sgm.0li.png)
+
+7. Press ESP32 reset button, all work done.
+
+![u13gl1aa.t5i](./assets/u13gl1aa.t5i.png)
 
 ## TODO
 
 - [ ] Add DoIP Support
   - [ ] VEHICLE_ANNOUNCEMENT
-- [ ] Export hex file for release
 
 
 
