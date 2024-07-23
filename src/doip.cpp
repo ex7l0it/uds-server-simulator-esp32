@@ -17,6 +17,8 @@ void doip_server_init()
     // Listen
     udp.begin(DOIP_PORT);
     server.begin();
+
+    Serial.println("DoIP Server started");
 }
 /* DoIP Server Init End */
 

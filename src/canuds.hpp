@@ -16,6 +16,7 @@ void isValueJsonString(cJSON *object);
 void isValueJsonBool(cJSON *object);
 int set_diag_id(cJSON *items, char *key_name);
 int DID_assignment(cJSON *items, char *key_name, int *DID_Arrary);
+void can_init();
 void uds_server_init(cJSON *root, char *ecu);
 
 void reset_relevant_variables();

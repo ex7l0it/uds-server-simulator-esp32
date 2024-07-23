@@ -2,7 +2,6 @@
 
 #include "src/globals.hpp"
 #include "src/doip.hpp"
-#include "src/doip_server.hpp"
 #include "src/canuds.hpp"
 #include <LittleFS.h>
 
@@ -38,40 +37,11 @@ void setup()
     {
       doip_server_init();
     }
-
+    else
+    {
+      can_init();
+    }
     uds_server_init(root, NULL);
-  }
-
-  // Set pins
-  ESP32Can.setPins(CAN_TX, CAN_RX);
-
-  // You can set custom size for the queues - those are default
-  ESP32Can.setRxQueueSize(5);
-  ESP32Can.setTxQueueSize(5);
-
-  // .setSpeed() and .begin() functions require to use TwaiSpeed enum,
-  // but you can easily convert it from numerical value using .convertSpeed()
-  ESP32Can.setSpeed(ESP32Can.convertSpeed(500));
-
-  // You can also just use .begin()..
-  if (ESP32Can.begin())
-  {
-    Serial.println("CAN bus started!");
-  }
-  else
-  {
-    Serial.println("CAN bus failed!");
-  }
-
-  // or override everything in one command;
-  // It is also safe to use .begin() without .end() as it calls it internally
-  if (ESP32Can.begin(ESP32Can.convertSpeed(500), CAN_TX, CAN_RX, 10, 10))
-  {
-    Serial.println("CAN bus started!");
-  }
-  else
-  {
-    Serial.println("CAN bus failed!");
   }
 }
 

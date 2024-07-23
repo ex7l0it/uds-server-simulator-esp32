@@ -298,6 +298,41 @@ int DID_assignment(cJSON *items, char *key_name, int *DID_Arrary)
     exit(1);
 }
 
+void can_init()
+{
+    // Set pins
+    ESP32Can.setPins(CAN_TX, CAN_RX);
+
+    // You can set custom size for the queues - those are default
+    ESP32Can.setRxQueueSize(5);
+    ESP32Can.setTxQueueSize(5);
+
+    // .setSpeed() and .begin() functions require to use TwaiSpeed enum,
+    // but you can easily convert it from numerical value using .convertSpeed()
+    ESP32Can.setSpeed(ESP32Can.convertSpeed(500));
+
+    // You can also just use .begin()..
+    if (ESP32Can.begin())
+    {
+        Serial.println("CAN bus started!");
+    }
+    else
+    {
+        Serial.println("CAN bus failed!");
+    }
+
+    // or override everything in one command;
+    // It is also safe to use .begin() without .end() as it calls it internally
+    if (ESP32Can.begin(ESP32Can.convertSpeed(500), CAN_TX, CAN_RX, 10, 10))
+    {
+        Serial.println("CAN bus started!");
+    }
+    else
+    {
+        Serial.println("CAN bus failed!");
+    }
+}
+
 // char lower2upper(char ch){
 //     if((ch >= 97) && (ch <= 122))   // lower character
 //         return ch ^ 32;
@@ -1042,7 +1077,8 @@ void can_uds::request_download_or_upload(CanFrame frame, int sid)
 
     req_transfer_type = sid;
     // Calculate the number of data blocks required (divide by 127 to round up the result)
-    req_transfer_block_num = (req_transfer_data_len + 127 - 1) / 127;;
+    req_transfer_block_num = (req_transfer_data_len + 127 - 1) / 127;
+    ;
 
     CanFrame resp = {0};
     resp.identifier = diag_phy_resp_id;
