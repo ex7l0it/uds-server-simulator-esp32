@@ -16,7 +16,7 @@ CanFrame rxFrame;
 /* Globals */
 char *version = "v1.0.0";
 
-int mode = 1; // 0: Can  1: DoIP
+int mode = RUN_MODE_CAN; // 0: Can  1: DoIP  2: Can + Dashboard
 
 int io_control_id_flag = 0; // 0-false 1-true
 long io_control_seconds = 0;

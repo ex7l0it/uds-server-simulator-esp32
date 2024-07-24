@@ -71,20 +71,21 @@
         "DID_IO_Control": []
     },
 
-    "HUT": {
+    "IP": {
         "func_req_id": "0x7DF",
         "phy_req_id": "0x726",
-        "phy_resp_id": "0x7C6",
+        "phy_resp_id": "0x72F",
         "DID_No_Security": {
             "0xF18B": "2023.03.03"
         },
         "DID_Security_03": {
             "0xF180": "boot v1.0.1", 
-            "0xF187": "HUT v1.3.3"
+            "0xF187": "IP v1.3.3"
         },
         "DID_Security_19": {
             "0xF190": "LUAU2AUB3GE383467",
-            "0xF197": "HUT"
+            "0xF197": "IP",
+            "0xF40D": ""
         },
         "DID_IO_Control": []
     },

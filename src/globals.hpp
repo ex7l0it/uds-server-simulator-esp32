@@ -13,6 +13,10 @@
 #define CAN_TX 5
 #define CAN_RX 4
 
+#define RUN_MODE_CAN                  0x0
+#define RUN_MODE_DOIP                 0x1
+#define RUN_MODE_CAN_WITH_DASHBOARD   0x2
+
 #define DOIP_PORT 13400
 #define UDP_CLIENT 0
 #define TCP_CLIENT 1

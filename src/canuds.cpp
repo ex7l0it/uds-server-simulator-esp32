@@ -359,6 +359,11 @@ void uds_server_init(cJSON *root, char *ecu)
         isValueJsonString(CURRENT_ECU);
         current_ecu = CURRENT_ECU->valuestring;
     }
+    if (mode == RUN_MODE_CAN_WITH_DASHBOARD && current_ecu != "IP")
+    {
+        Serial.println("## PLEASE SET CURRENT_ECU TO IP ##");
+        mode = RUN_MODE_CAN;
+    }
 
     // 64K
     firmwareSpace = (uint8_t *)malloc(SPACE_SIZE);
@@ -763,15 +768,24 @@ void can_uds::read_data_by_id(CanFrame frame)
     str[0] = 0x62;
     str[1] = (uint8_t)((did & 0x0000ff00) >> 8);
     str[2] = (uint8_t)(did & 0x000000ff);
+    size_t len = 0;
     for (int i = 0; i < DID_NUM; i++)
     {
         if (pairs[i].key == did)
         {
-            memcpy(&str[3], pairs[i].value, strlen((char *)pairs[i].value));
+            switch (did) {
+            case DID_OBD_VEHICLE_SPEED_SENSOR:
+                len = 1;
+                break;
+            default:
+                len = strlen((char *)pairs[i].value);
+                break;
+            }
+            memcpy(&str[3], pairs[i].value, len);
             break;
         }
     }
-    isotp_send_to(str, strlen((char *)str));
+    isotp_send_to(str, len+3);
     memset(str, 0, sizeof(str));
 }
 
@@ -1210,6 +1224,19 @@ void can_uds::xfer_exit(CanFrame frame)
 
 void can_uds::handle_pkt(CanFrame frame)
 {
+    if (mode == RUN_MODE_CAN_WITH_DASHBOARD)
+    {
+        // Check if can_id in dashboard range (DashboardCANID[])
+        for (int i = 0; i < DASHBOARD_CAN_ID_COUNT; i++)
+        {
+            if (frame.identifier == DashboardCANID[i])
+            {
+                handle_dashboard_frame(frame);
+                return;
+            }
+        }
+    }
+
     /* DO NOT RECEIVE OTHER CANID */
     if (frame.identifier != diag_func_req_id && frame.identifier != diag_phy_req_id)
     {

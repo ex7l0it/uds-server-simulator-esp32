@@ -8,7 +8,9 @@
 void setup()
 {
   // check GPIO18 is high or low
-  gpio_get_level(GPIO_NUM_18) ? mode = 1 : mode = 0;
+  gpio_get_level(GPIO_NUM_18) ? mode = RUN_MODE_DOIP : mode = RUN_MODE_CAN;
+  // check GPIO19 is high or low
+  mode == RUN_MODE_CAN && gpio_get_level(GPIO_NUM_19) ? mode = RUN_MODE_CAN_WITH_DASHBOARD : mode = RUN_MODE_CAN;
 
   randomSeed(analogRead(0));
   // Setup serial for debbuging.
@@ -33,7 +35,7 @@ void setup()
     {
       Serial.println("Error in read_config");
     }
-    if (mode == 1)
+    if (mode == RUN_MODE_DOIP)
     {
       doip_server_init();
     }
@@ -42,6 +44,23 @@ void setup()
       can_init();
     }
     uds_server_init(root, NULL);
+  }
+
+  // show current mode
+  switch (mode)
+  {
+  case RUN_MODE_CAN:
+    Serial.println("[+] CAN Mode");
+    break;
+  case RUN_MODE_DOIP:
+    Serial.println("[+] DOIP Mode");
+    break;
+  case RUN_MODE_CAN_WITH_DASHBOARD: 
+    Serial.println("[+] CAN Mode with Dashboard");
+    break;
+  default:
+    Serial.println("[+] Unknown Mode");
+    break;
   }
 }
 
@@ -75,17 +94,23 @@ cJSON *read_config()
 
 void loop()
 {
-  if (mode == 0)
+  if (mode == RUN_MODE_CAN || mode == RUN_MODE_CAN_WITH_DASHBOARD)
   {
     static uint32_t lastStamp = 0;
     uint32_t currentStamp = millis();
 
-    if (random_frame && currentStamp - lastStamp > 1000)
-    {
-      // Generate random CAN data per second
+    if (currentStamp - lastStamp > 1000) {
       lastStamp = currentStamp;
-      sendRandomFrame();
-      uint8_t buffer[256] = {0};
+      if (random_frame)
+      {
+        // Generate random CAN data per second
+        lastStamp = currentStamp;
+        sendRandomFrame();
+        uint8_t buffer[256] = {0};
+      }
+      if (mode == RUN_MODE_CAN_WITH_DASHBOARD) {
+        show_dashboard();
+      }
     }
 
     // You can set custom timeout, default is 1000
@@ -96,7 +121,7 @@ void loop()
     }
   }
   // if open DoIP mode
-  else if (mode == 1)
+  else if (mode == RUN_MODE_DOIP)
   {
     // udp
     int udp_len = udp.parsePacket();
@@ -129,7 +154,7 @@ void handle_client(void *parameter)
   WiFiClient client = *((WiFiClient *)parameter);
   free(parameter);
 
-  if (mode == 1)
+  if (mode == RUN_MODE_DOIP)
   {
     while (client.connected())
     {

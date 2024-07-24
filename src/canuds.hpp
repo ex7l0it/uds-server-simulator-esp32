@@ -2,6 +2,7 @@
 #ifndef CANUDS_H
 #define CANUDS_H
 #include "globals.hpp"
+#include "dashboard.hpp"
 #include "../third/cJSON.h"
 
 void sendRandomFrame();
