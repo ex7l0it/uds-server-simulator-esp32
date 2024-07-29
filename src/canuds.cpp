@@ -359,7 +359,7 @@ void uds_server_init(cJSON *root, char *ecu)
         isValueJsonString(CURRENT_ECU);
         current_ecu = CURRENT_ECU->valuestring;
     }
-    if (mode == RUN_MODE_CAN_WITH_DASHBOARD && current_ecu != "IP")
+    if (mode == RUN_MODE_CAN_DASHBOARD && strcmp(current_ecu, "IP") != 0)
     {
         Serial.println("## PLEASE SET CURRENT_ECU TO IP ##");
         mode = RUN_MODE_CAN;
@@ -1224,7 +1224,7 @@ void can_uds::xfer_exit(CanFrame frame)
 
 void can_uds::handle_pkt(CanFrame frame)
 {
-    if (mode == RUN_MODE_CAN_WITH_DASHBOARD)
+    if (mode == RUN_MODE_CAN_DASHBOARD)
     {
         // Check if can_id in dashboard range (DashboardCANID[])
         for (int i = 0; i < DASHBOARD_CAN_ID_COUNT; i++)

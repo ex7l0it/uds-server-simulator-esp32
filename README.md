@@ -8,7 +8,7 @@ Simulatable services:
 - 0x22: ReadDataByIdentifier
   - not support multi-did data read
 - 0x27: Security Access
-- 0x2E: WriteDataByIdentifier
+- 0x2E: WriteDataByIdentifier``````````````
 - 0x2F: InputOutputControlByIdentifier
 - 0x34: RequestDownload
 - 0x35: RequestUpload
@@ -104,7 +104,7 @@ Connect the 3.3V pin to the D18 pin, then press the reset button, if you see the
 
 ![epk3jxck.kd5](./assets/epk3jxck.kd5.png)
 
-Connect to the AP (SSID: ESP32_DoIP, Password: `ESP32_DoIP_123456`), then you can connect to the 13400 port.
+Connect to the AP (SSID: ESP32_DoIP, Password: `12345678`), then you can connect to the 13400 port.
 
 ![Snipaste_2024-07-22_14-23-03](./assets/Snipaste_2024-07-22_14-23-03.png)
 
@@ -154,12 +154,6 @@ git clone https://github.com/ex7l0it/uds-server-simulator-esp32.git
 7. Press ESP32 reset button, all work done.
 
 ![u13gl1aa.t5i](./assets/u13gl1aa.t5i.png)
-
-## TODO
-
-- [ ] Add DoIP Support
-  - [ ] VEHICLE_ANNOUNCEMENT
-
 
 
 ## Acknowledgments

@@ -1,6 +1,6 @@
 {   
-    "CURRENT_ECU": "TBOX",
-    "RANDOM_FRAME": true,
+    "CURRENT_ECU": "IP",
+    "RANDOM_FRAME": false,
     "GW": {
         "func_req_id": "",
         "phy_req_id": "0x703",
@@ -142,6 +142,22 @@
         "DID_Security_19": {
             "0xF190": "LUAU2AUB3GE383467",
             "0xF197": "TPMS"
+        },
+        "DID_IO_Control": []
+    },
+    "ECM": {
+        "func_req_id": "",
+        "phy_req_id": "0x793",
+        "phy_resp_id": "0x79C",
+        "DID_No_Security": { 
+            "0xF18B": "2024.06.15"
+        },
+        "DID_Security_03": {
+            "0xF180": "boot v1.0.1", 
+            "0xF187": "ECM v1.0.1"
+        },
+        "DID_Security_19": {
+            "0xF190": "LUAU2AUB3GE383467"
         },
         "DID_IO_Control": []
     }

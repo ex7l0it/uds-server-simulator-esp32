@@ -2,15 +2,18 @@
 
 /* AP Config */
 WiFiAPClass WiFiAP;
-const char *ssid = "ESP32_DoIP";
-const char *password = "ESP32_DoIP_123456";
+const char *doip_ssid = "ESP32_DoIP";
+const char *dash_ssid = "ESP32_Dashboard";
+const char *password = "12345678";
 IPAddress local_IP(192, 168, 77, 1);
 IPAddress gateway(192, 168, 77, 1);
 IPAddress subnet(255, 255, 255, 0);
+IPAddress boardcast_IP(255, 255, 255, 255);
 // UDP Listen 13400
 WiFiUDP udp;
 // TCP Listen 13400
 WiFiServer server(DOIP_PORT);
+WebServer dash_server(80);
 
 CanFrame rxFrame;
 /* Globals */

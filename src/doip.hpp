@@ -82,6 +82,7 @@ private:
 
 
 void doip_server_init();
+void doip_identification_announcement(WiFiUDP *udp_client);
 void handle_doip_frame(DoIPFrame *frame, WiFiClient *tcp_client, WiFiUDP* udp_client, int client_type);
 std::pair<uint8_t*, size_t> gen_identification_response_payload(char *VIN, uint16_t LogicalAddress, uint8_t *EID, uint8_t *GID);
 std::pair<uint8_t*, size_t> gen_routing_activation_response_payload(uint16_t ClientLogicalAddress, uint16_t DoIPLogicalAddress, uint8_t code);
@@ -111,5 +112,6 @@ namespace doip_uds {
 }
 
 extern void reset_relevant_variables();
+extern bool is_announced;
 
 #endif

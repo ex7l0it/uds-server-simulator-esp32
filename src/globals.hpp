@@ -4,6 +4,7 @@
 #include <WiFiAP.h>
 #include <WiFiClient.h>
 #include <WiFiServer.h>
+#include <WebServer.h>
 #include "../uds-server-simulator.h"
 #include "../third/ESP32-TWAI-CAN.hpp"
 #include "doip.hpp"
@@ -15,20 +16,33 @@
 
 #define RUN_MODE_CAN                  0x0
 #define RUN_MODE_DOIP                 0x1
-#define RUN_MODE_CAN_WITH_DASHBOARD   0x2
+#define RUN_MODE_CAN_DASHBOARD        0x2
+#define RUN_MODE_CAN_CONTROL          0x3
+
+#define DEFAULT_SPEED_ID            0x255
+#define DEFAULT_DOOR_ID             0x166
+#define DEFAULT_TURN_SIGNAL_ID      0x177
+
+#define DOOR_FRONT_LEFT_LOCK    1
+#define DOOR_FRONT_RIGHT_LOCK   2
+#define DOOR_REAR_LEFT_LOCK     4
+#define DOOR_REAR_RIGHT_LOCK    8
 
 #define DOIP_PORT 13400
 #define UDP_CLIENT 0
 #define TCP_CLIENT 1
 
 extern WiFiAPClass WiFiAP;
-extern const char *ssid;
+extern const char *doip_ssid;
+extern const char *dash_ssid;
 extern const char *password;
 extern IPAddress local_IP;
 extern IPAddress gateway;
 extern IPAddress subnet;
+extern IPAddress boardcast_IP;
 extern WiFiUDP udp;
 extern WiFiServer server;
+extern WebServer dash_server;
 
 extern CanFrame rxFrame;
 extern char *version;

@@ -1,16 +1,18 @@
-
-
 #include "src/globals.hpp"
 #include "src/doip.hpp"
 #include "src/canuds.hpp"
+#include "src/dashboard.hpp"
 #include <LittleFS.h>
 
 void setup()
 {
   // check GPIO18 is high or low
   gpio_get_level(GPIO_NUM_18) ? mode = RUN_MODE_DOIP : mode = RUN_MODE_CAN;
-  // check GPIO19 is high or low
-  mode == RUN_MODE_CAN && gpio_get_level(GPIO_NUM_19) ? mode = RUN_MODE_CAN_WITH_DASHBOARD : mode = RUN_MODE_CAN;
+  // check GPIO21 is high or low
+  if (mode == RUN_MODE_CAN)
+  {
+    mode = gpio_get_level(GPIO_NUM_21) ? mode = RUN_MODE_CAN_DASHBOARD : mode = RUN_MODE_CAN;
+  }
 
   randomSeed(analogRead(0));
   // Setup serial for debbuging.
@@ -35,14 +37,6 @@ void setup()
     {
       Serial.println("Error in read_config");
     }
-    if (mode == RUN_MODE_DOIP)
-    {
-      doip_server_init();
-    }
-    else
-    {
-      can_init();
-    }
     uds_server_init(root, NULL);
   }
 
@@ -51,12 +45,16 @@ void setup()
   {
   case RUN_MODE_CAN:
     Serial.println("[+] CAN Mode");
+    can_init();
     break;
   case RUN_MODE_DOIP:
     Serial.println("[+] DOIP Mode");
+    doip_server_init();
     break;
-  case RUN_MODE_CAN_WITH_DASHBOARD: 
+  case RUN_MODE_CAN_DASHBOARD:
     Serial.println("[+] CAN Mode with Dashboard");
+    can_init();
+    dashboard_init();
     break;
   default:
     Serial.println("[+] Unknown Mode");
@@ -94,12 +92,13 @@ cJSON *read_config()
 
 void loop()
 {
-  if (mode == RUN_MODE_CAN || mode == RUN_MODE_CAN_WITH_DASHBOARD)
+  if (mode == RUN_MODE_CAN)
   {
     static uint32_t lastStamp = 0;
     uint32_t currentStamp = millis();
 
-    if (currentStamp - lastStamp > 1000) {
+    if (currentStamp - lastStamp > 1000)
+    {
       lastStamp = currentStamp;
       if (random_frame)
       {
@@ -107,9 +106,6 @@ void loop()
         lastStamp = currentStamp;
         sendRandomFrame();
         uint8_t buffer[256] = {0};
-      }
-      if (mode == RUN_MODE_CAN_WITH_DASHBOARD) {
-        show_dashboard();
       }
     }
 
@@ -123,6 +119,13 @@ void loop()
   // if open DoIP mode
   else if (mode == RUN_MODE_DOIP)
   {
+    // if new client connect to the AP
+    if (WiFiAP.softAPgetStationNum() > 0 && !is_announced)
+    {
+      // announcement
+      doip_identification_announcement(&udp);
+    }
+
     // udp
     int udp_len = udp.parsePacket();
     if (udp_len)
@@ -145,6 +148,16 @@ void loop()
       Serial.println("New Client.");
       WiFiClient *newClient = new WiFiClient(client);
       xTaskCreate(handle_client, "handle_client", 4096, newClient, 1, NULL);
+    }
+  }
+  else if (mode == RUN_MODE_CAN_DASHBOARD)
+  {
+    dash_server.handleClient();
+    // You can set custom timeout, default is 1000
+    if (ESP32Can.readFrame(rxFrame, 1000))
+    {
+      // Comment out if too many requests
+      can_uds::handle_pkt(rxFrame);
     }
   }
 }

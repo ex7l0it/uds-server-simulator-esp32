@@ -8,7 +8,7 @@ void doip_server_init()
 {
     // AP
     WiFiAP.softAPConfig(local_IP, gateway, subnet);
-    WiFiAP.softAP(ssid, password);
+    WiFiAP.softAP(doip_ssid, password);
 
     // Turn on LED
     pinMode(2, OUTPUT);
@@ -19,6 +19,48 @@ void doip_server_init()
     server.begin();
 
     Serial.println("DoIP Server started");
+}
+void doip_identification_announcement(WiFiUDP *udp_client)
+{
+    DoIPFrame responseFrame = DoIPFrame(nullptr, udp_client);
+    char VIN[18] = "DEFAULT_VIN123456";
+    // check if VIN is in the Global pairs
+    for (int i = 0; i < DID_NUM; i++)
+    {
+        if (pairs[i].key == 0xF190)
+        {
+            memcpy(VIN, pairs[i].value, strlen((char *)pairs[i].value));
+            break;
+        }
+    }
+    // get MAC address
+    String WiFiMAC = WiFi.macAddress();
+    uint8_t EID[6] = {0};
+    for (int i = 0; i < 6; i++)
+    {
+        EID[i] = (uint8_t)strtol(WiFiMAC.substring(i * 3, i * 3 + 2).c_str(), NULL, 16);
+    }
+    uint8_t GID[6] = {0x0A, 0x0B, 0x0C, 0x0D, 0x0E, 0x0F};
+
+    uint8_t *payload = nullptr;
+    size_t payload_len = 0;
+
+    std::tie(payload, payload_len) = gen_identification_response_payload(VIN, ECULogicalAddress, EID, GID);
+    responseFrame.setPayloadType(VEHICLE_ANNOUNCEMENT_OR_IDENTIFICATION_RESPONSE);
+    responseFrame.setPayload(payload, payload_len);
+    uint8_t *response_data = responseFrame.getData();
+    // send announcement 3 times
+    for (int i = 0; i < 3; i++)
+    {
+        // delay
+        delay(100 * (i+1));
+        udp_client->beginPacket(boardcast_IP, DOIP_PORT);
+        udp_client->write(response_data, responseFrame.getDataLength());
+        udp_client->endPacket();
+    }
+    is_announced = true;
+    free(payload);
+    free(response_data);
 }
 /* DoIP Server Init End */
 
@@ -1193,3 +1235,5 @@ void handle_doip_frame(DoIPFrame *frame, WiFiClient *tcp_client, WiFiUDP *udp_cl
 
     return;
 }
+
+bool is_announced = false;
