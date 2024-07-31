@@ -19,6 +19,9 @@
 #define RUN_MODE_CAN_DASHBOARD        0x2
 #define RUN_MODE_CAN_CONTROL          0x3
 
+#define SPEED_UP_GPIO               GPIO_NUM_12
+#define MAX_SPEED                   655
+
 #define DEFAULT_SPEED_ID            0x255
 #define DEFAULT_DOOR_ID             0x166
 #define DEFAULT_TURN_SIGNAL_ID      0x177

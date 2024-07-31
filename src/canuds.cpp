@@ -4,7 +4,7 @@
 void sendRandomFrame()
 {
     CanFrame randFrame = {0};
-    randFrame.identifier = random(0, 0x800);
+    randFrame.identifier = random(0, 0x700);
     randFrame.extd = 0;
     randFrame.data_length_code = random(0, 9);
     for (int i = 0; i < randFrame.data_length_code; ++i)
@@ -361,7 +361,12 @@ void uds_server_init(cJSON *root, char *ecu)
     }
     if (mode == RUN_MODE_CAN_DASHBOARD && strcmp(current_ecu, "IP") != 0)
     {
-        Serial.println("## PLEASE SET CURRENT_ECU TO IP ##");
+        Serial.println("## PLEASE SET CURRENT_ECU TO IP (DASHBOARD)##");
+        mode = RUN_MODE_CAN;
+    }
+    if (mode == RUN_MODE_CAN_CONTROL && strcmp(current_ecu, "ECM") != 0)
+    {
+        Serial.println("## PLEASE SET CURRENT_ECU TO ECM (CONTROL)##");
         mode = RUN_MODE_CAN;
     }
 

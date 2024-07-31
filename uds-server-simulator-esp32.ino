@@ -2,17 +2,18 @@
 #include "src/doip.hpp"
 #include "src/canuds.hpp"
 #include "src/dashboard.hpp"
+#include "src/controls.hpp"
 #include <LittleFS.h>
 
 void setup()
 {
   // check GPIO18 is high or low
   gpio_get_level(GPIO_NUM_18) ? mode = RUN_MODE_DOIP : mode = RUN_MODE_CAN;
-  // check GPIO21 is high or low
+  // check GPIO19 is high or low
   if (mode == RUN_MODE_CAN)
-  {
-    mode = gpio_get_level(GPIO_NUM_21) ? mode = RUN_MODE_CAN_DASHBOARD : mode = RUN_MODE_CAN;
-  }
+    mode = gpio_get_level(GPIO_NUM_19) ? mode = RUN_MODE_CAN_DASHBOARD : mode = RUN_MODE_CAN;
+  if (mode == RUN_MODE_CAN)
+    mode = gpio_get_level(GPIO_NUM_21) ? mode = RUN_MODE_CAN_CONTROL : mode = RUN_MODE_CAN;
 
   randomSeed(analogRead(0));
   // Setup serial for debbuging.
@@ -55,6 +56,10 @@ void setup()
     Serial.println("[+] CAN Mode with Dashboard");
     can_init();
     dashboard_init();
+    break;
+  case RUN_MODE_CAN_CONTROL:
+    Serial.println("[+] CAN Mode with Control");
+    can_init();
     break;
   default:
     Serial.println("[+] Unknown Mode");
@@ -108,9 +113,8 @@ void loop()
         uint8_t buffer[256] = {0};
       }
     }
-
     // You can set custom timeout, default is 1000
-    if (ESP32Can.readFrame(rxFrame, 1000))
+    if (ESP32Can.readFrame(rxFrame, 100))
     {
       // Comment out if too many requests
       can_uds::handle_pkt(rxFrame);
@@ -152,12 +156,30 @@ void loop()
   }
   else if (mode == RUN_MODE_CAN_DASHBOARD)
   {
-    dash_server.handleClient();
     // You can set custom timeout, default is 1000
     if (ESP32Can.readFrame(rxFrame, 1000))
     {
       // Comment out if too many requests
       can_uds::handle_pkt(rxFrame);
+    }
+    dash_server.handleClient();
+  }
+  else if (mode == RUN_MODE_CAN_CONTROL) {
+    static uint32_t speed_lastStamp = 0;
+    static uint32_t rand_lastStamp = 0;
+    uint32_t currentStamp = millis();
+    if (currentStamp - speed_lastStamp > 100) {
+      speed_lastStamp = currentStamp;
+      check_gpio();
+      send_speed();
+    }
+    if (currentStamp - rand_lastStamp > 1000) {
+      rand_lastStamp = currentStamp;
+      if (random_frame) {
+        // Generate random CAN data per second
+        sendRandomFrame();
+        uint8_t buffer[256] = {0};
+      }
     }
   }
 }
