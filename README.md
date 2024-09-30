@@ -8,7 +8,7 @@ Simulatable services:
 - 0x22: ReadDataByIdentifier
   - not support multi-did data read
 - 0x27: Security Access
-- 0x2E: WriteDataByIdentifier``````````````
+- 0x2E: WriteDataByIdentifier
 - 0x2F: InputOutputControlByIdentifier
 - 0x34: RequestDownload
 - 0x35: RequestUpload
